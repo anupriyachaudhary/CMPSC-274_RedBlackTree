@@ -11,9 +11,13 @@ $ dotnet build
 $ dotnet run
 
 
-ISSUES to be resolved:
+ISSUE to be resolved:
 (1) Insertion of the root node is sequential. Rest of the insertions run concurrently.
     Have to figure out how to insert root sequentially as well.
-    Since since root added seperately, run the command outputs:
-    Total nodes to insert = (let's say) x
-    Node count after insertion = x + 1
+
+    
+NOTE: 
+When I run the concurrent implementation it outputs:
+Total nodes to insert = (let's say) x
+Node count after insertion = x + 1
+2nd issue is due to the issue one. Since I first add the root and then add x nodes using a concurrent implementation
