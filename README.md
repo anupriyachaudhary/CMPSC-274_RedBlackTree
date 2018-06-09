@@ -1,9 +1,11 @@
 # CMPSC-274_RedBlackTree
 
 For sequential implementation of RBT from CMPSC-274_RedBlackTree/SequentialRBT_LockFree/ directory run the following commands:
+
 $ dotnet build
 
 $ dotnet run
+
 
 
 
@@ -14,11 +16,17 @@ $ dotnet build
 $ dotnet run
 
 
+
+
+
 ISSUE to be resolved:
 (1) Insertion of the root node is sequential. Rest of the insertions run concurrently.
     Have to figure out how to insert root sequentially as well.
 
-    
+  
+
+
+
 NOTE: 
 
 When I run the concurrent implementation it outputs:
