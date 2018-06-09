@@ -664,30 +664,28 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\vikasta\\.nuget\\packages\\": {},
-    "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder": {}
+    "/Users/anu/.nuget/packages/": {},
+    "/usr/local/share/dotnet/sdk/NuGetFallbackFolder": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\learning\\anu\\databases\\paper1\\ConcurrentRBTree\\SequentialRBTree\\SequentialRBTree.csproj",
+      "projectUniqueName": "/Users/anu/Documents/CMPSC-274_RedBlackTree/SequentialRBT_LockFree/SequentialRBTree.csproj",
       "projectName": "SequentialRBTree",
-      "projectPath": "D:\\learning\\anu\\databases\\paper1\\ConcurrentRBTree\\SequentialRBTree\\SequentialRBTree.csproj",
-      "packagesPath": "C:\\Users\\vikasta\\.nuget\\packages\\",
-      "outputPath": "D:\\learning\\anu\\databases\\paper1\\ConcurrentRBTree\\SequentialRBTree\\obj\\",
+      "projectPath": "/Users/anu/Documents/CMPSC-274_RedBlackTree/SequentialRBT_LockFree/SequentialRBTree.csproj",
+      "packagesPath": "/Users/anu/.nuget/packages/",
+      "outputPath": "/Users/anu/Documents/CMPSC-274_RedBlackTree/SequentialRBT_LockFree/obj/",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
-        "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        "/usr/local/share/dotnet/sdk/NuGetFallbackFolder"
       ],
       "configFilePaths": [
-        "C:\\Users\\vikasta\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        "/Users/anu/.nuget/NuGet/NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "netcoreapp2.0"
       ],
       "sources": {
-        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
