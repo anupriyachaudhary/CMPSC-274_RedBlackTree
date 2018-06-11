@@ -9,6 +9,7 @@ namespace ConcurrentRedBlackTree
         where TKey : IComparable<TKey>, IComparable, IEquatable<TKey>
     {
         private RedBlackNode<TKey, TValue> _root = new RedBlackNode<TKey, TValue>();
+        private object rootLock = new Object();
 
         public Tuple<TKey, TValue> GetData(TKey key)
         {
@@ -110,7 +111,7 @@ namespace ConcurrentRedBlackTree
             // create new node
             var newNode = new RedBlackNode<TKey, TValue>(key, data);
 
-            RedBlackNode<TKey, TValue> aLocked = Insert(newNode);
+            (RedBlackNode<TKey, TValue> aLocked, bool releaseRoot) = Insert(newNode);
 
             var localArea = new List<RedBlackNode<TKey, TValue>>();
 
@@ -118,17 +119,33 @@ namespace ConcurrentRedBlackTree
             BalanceTreeAfterInsert(newNode, localArea);
 
             localArea.ForEach(node => node?.ReleaseELock());
-            aLocked.ReleaseALock();
+            if (releaseRoot) Monitor.Exit(rootLock);
+            aLocked?.ReleaseALock();
         }
 
-        private RedBlackNode<TKey, TValue> Insert(RedBlackNode<TKey, TValue> newNode)
+        private (RedBlackNode<TKey, TValue>, bool) Insert(RedBlackNode<TKey, TValue> newNode)
         {
             RedBlackNode<TKey, TValue> aLocked;
         
-            bool lastWasBlack = false;
-            RedBlackNode<TKey, TValue> workNode = _root;
+            RedBlackNode<TKey, TValue> lastBlack = null;
 
+            Monitor.Enter(rootLock);
+            RedBlackNode<TKey, TValue> workNode = _root;
+            Console.WriteLine("From top of insert");
             workNode.GetALock();
+            Console.WriteLine("Got root lock!");
+
+            if (workNode.IsSentinel)
+            {
+                // workNode is root
+                _root = newNode;
+                _root.GetALock();
+                workNode.ReleaseALock();
+                return (_root, true);
+            }
+
+            bool releaseRoot = true;
+            
             aLocked = workNode;
 
             while (true)
@@ -146,19 +163,28 @@ namespace ConcurrentRedBlackTree
                     throw new Exception("duplicate key");
                 }
 
-                if (workNode.Color == RedBlackNodeType.Black)
+                if (workNode.Color == RedBlackNodeType.Black && lastBlack != _root)
                 {
-                    if (lastWasBlack)
+                    if (lastBlack != null)
                     {
-                        workNode.GetALock();
+                        lastBlack.GetALock();
                         aLocked.ReleaseALock();
-                        aLocked = workNode;
+                        if(releaseRoot) Monitor.Exit(rootLock);
+                        aLocked = lastBlack;
+                        releaseRoot = false;
                     }
-                    lastWasBlack = true;
+                    lastBlack = workNode;
                 }
                 else
                 {
-                    lastWasBlack = false;
+                    if (workNode.Color == RedBlackNodeType.Black)
+                    {
+                        lastBlack = workNode;
+                    }
+                    else
+                    {
+                        lastBlack = null;
+                    }
                 }
 
                 if (result > 0)
@@ -171,21 +197,12 @@ namespace ConcurrentRedBlackTree
                 }
             }
 
-            // insert node into tree starting at parent's location
-            if (newNode.Parent != null)
-            {
-                if (newNode.Key.CompareTo(newNode.Parent.Key) > 0)
-                    newNode.Parent.Right = newNode;
-                else
-                    newNode.Parent.Left = newNode;
-            }
+            if (newNode.Key.CompareTo(newNode.Parent.Key) > 0)
+                newNode.Parent.Right = newNode;
             else
-            {
-                // first node added
-                _root = newNode;
-            }
+                newNode.Parent.Left = newNode;
 
-            return aLocked;
+            return (aLocked, releaseRoot);
         }
         
         private static void OccupyLocalArea(RedBlackNode<TKey, TValue> node, List<RedBlackNode<TKey, TValue>> working)
@@ -268,6 +285,7 @@ namespace ConcurrentRedBlackTree
 
                         // continue loop with grandparent
                         insertedNode = insertedNode.Parent.Parent;
+                        if (insertedNode == _root || insertedNode.Parent.Color != RedBlackNodeType.Red) break;
                         MoveLocalAreaUpward(insertedNode, working);
                     }
                     else
@@ -293,6 +311,7 @@ namespace ConcurrentRedBlackTree
 
                         // continue loop with grandparent
                         insertedNode = insertedNode.Parent.Parent;
+                        if (insertedNode == _root || insertedNode.Parent.Color != RedBlackNodeType.Red) break;
                         MoveLocalAreaUpward(insertedNode, working);
                     }
                     else
@@ -434,8 +453,10 @@ namespace ConcurrentRedBlackTree
                 else
                     workNode.Parent.Right = linkedNode;
             else
+            {
                 // make x the root node
                 _root = linkedNode;
+            }
 
             // copy the values from y (the replacement node) to the node being deleted.
             // note: this effectively deletes the node. 

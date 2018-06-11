@@ -16,7 +16,7 @@ namespace ConcurrentRedBlackTree
         static void Main(string[] args)
         {
             const int numOfThreads = 4;
-            const int nodesPerThread = 2;
+            const int nodesPerThread = 2000000;
             const int totalNodesToInsert = numOfThreads * nodesPerThread;
             const int nodesMaxKeyValue = 100000000;
             const int searchOperationsPerThread = 1000000;
