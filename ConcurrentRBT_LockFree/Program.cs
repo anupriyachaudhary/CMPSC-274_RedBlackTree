@@ -102,7 +102,7 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine($"Total time spent in insertion: {watch.ElapsedMilliseconds} ms");
             Console.WriteLine();
 
-            Console.WriteLine($"Node count after insertion: {rbTree.Count()}");
+            Console.WriteLine($"Node count after insertion: {(rbTree.Count()-1)}");
             Console.WriteLine();
 
             Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");
