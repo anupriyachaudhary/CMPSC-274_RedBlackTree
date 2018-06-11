@@ -18,7 +18,7 @@ namespace ConcurrentRedBlackTree
             const int numOfThreads = 4;
             const int nodesPerThread = 2000000;
             const int totalNodesToInsert = numOfThreads * nodesPerThread;
-            const int nodesMaxKeyValue = 100000000;
+            const int nodesMaxKeyValue = 16000000;
             const int searchOperationsPerThread = 1000000;
 
             var rbTree = new ConcurrentRBTree<long, Data>();
@@ -39,8 +39,8 @@ namespace ConcurrentRedBlackTree
             var rand = new Random();
 
             var key = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
-            rbTree.Add(key, new Data { Value = key.ToString()});
-            
+            rbTree.Add(key, new Data {Value = key.ToString()});
+
             var keys = new HashSet<long>();
 
             for (var i = 0; i < totalNodesToInsert; i++)
@@ -48,16 +48,17 @@ namespace ConcurrentRedBlackTree
                 long value;
                 while (true)
                 {
-                    value = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    value = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
                     if (!keys.Contains(value) && value != key)
                     {
                         break;
                     }
                 }
+
                 keys.Add(value);
             }
 
-            var values = keys.Select(i => new Tuple<long, Data>(i, new Data { Value = i.ToString() })).ToArray();
+            var values = keys.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
 
             var threads = new Thread[numOfThreads];
 
@@ -129,7 +130,7 @@ namespace ConcurrentRedBlackTree
                     var rand = new Random();
                     for (var j = 0; j < searchOperationsPerThread; j++)
                     {
-                        var target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                        var target = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
                         _ = rbTree.GetData(target);
                     }
                 });
