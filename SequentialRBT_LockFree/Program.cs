@@ -16,7 +16,7 @@ namespace SequentialRBTree
         static void Main(string[] args)
         {
             // read command line parameters
-            const int totalNodesToInsert = 8000000;
+            const int totalNodesToInsert = 12000000;
             const int nodesMaxKeyValue = 100000000;
             const int searchOperations = 1000000;
             const int deleteOperations = 10000;

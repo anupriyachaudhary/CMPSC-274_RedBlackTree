@@ -131,9 +131,7 @@ namespace ConcurrentRedBlackTree
 
             Monitor.Enter(rootLock);
             RedBlackNode<TKey, TValue> workNode = _root;
-            Console.WriteLine("From top of insert");
             workNode.GetALock();
-            Console.WriteLine("Got root lock!");
 
             if (workNode.IsSentinel)
             {
@@ -165,6 +163,7 @@ namespace ConcurrentRedBlackTree
 
                 if (workNode.Color == RedBlackNodeType.Black && lastBlack != _root)
                 {
+                    
                     if (lastBlack != null)
                     {
                         lastBlack.GetALock();
@@ -174,6 +173,7 @@ namespace ConcurrentRedBlackTree
                         releaseRoot = false;
                     }
                     lastBlack = workNode;
+                    
                 }
                 else
                 {

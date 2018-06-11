@@ -60,26 +60,26 @@ namespace ConcurrentRedBlackTree
 
         public void GetALock()
         {
-            Console.WriteLine("aLock" + " " + Thread.CurrentThread.ManagedThreadId + " " + Key);
+            //Console.WriteLine("aLock" + " " + Thread.CurrentThread.ManagedThreadId + " " + Key);
             Monitor.Enter(aLock);
             aClaimed++;
-            Console.WriteLine("aLock(f)" + " " + Thread.CurrentThread.ManagedThreadId + " " + aClaimed + " " + Key);
+            //Console.WriteLine("aLock(f)" + " " + Thread.CurrentThread.ManagedThreadId + " " + aClaimed + " " + Key);
         }
 
         public void ReleaseALock()
         {
             aClaimed--;
-            Console.WriteLine("aLock(r)" + " " + Thread.CurrentThread.ManagedThreadId + " " + aClaimed + " " + Key);
+            //Console.WriteLine("aLock(r)" + " " + Thread.CurrentThread.ManagedThreadId + " " + aClaimed + " " + Key);
             Monitor.Exit(aLock);
         }
 
         public void GetPLock()
         {
-            Console.WriteLine("pLock");
+            //Console.WriteLine("pLock");
             Monitor.Enter(pLock);
             pCount++;
             Monitor.Exit(pLock);
-            Console.WriteLine("pLock(f)");
+            //Console.WriteLine("pLock(f)");
         }
         
         public void ReleasePLock()
@@ -91,7 +91,7 @@ namespace ConcurrentRedBlackTree
 
         public void GetELock()
         {
-            Console.WriteLine("eLock" + " " + Thread.CurrentThread.ManagedThreadId + " " + Key);
+            //Console.WriteLine("eLock" + " " + Thread.CurrentThread.ManagedThreadId + " " + Key);
             while (true)
             {
                 Monitor.Enter(pLock);
@@ -105,13 +105,13 @@ namespace ConcurrentRedBlackTree
             Monitor.Enter(aLock);
             Monitor.Enter(eLock);
             eClaimed++;
-            Console.WriteLine("eLock(f)" + " " + Thread.CurrentThread.ManagedThreadId + " " + eClaimed + " " + Key);
+            //Console.WriteLine("eLock(f)" + " " + Thread.CurrentThread.ManagedThreadId + " " + eClaimed + " " + Key);
         }
 
         public void ReleaseELock()
         {
             eClaimed--;
-            Console.WriteLine("eLock(r)" + " " + Thread.CurrentThread.ManagedThreadId + " " + eClaimed + " " + Key);
+            //Console.WriteLine("eLock(r)" + " " + Thread.CurrentThread.ManagedThreadId + " " + eClaimed + " " + Key);
             Monitor.Exit(pLock);
             Monitor.Exit(aLock);
             Monitor.Exit(eLock);
