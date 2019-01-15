@@ -6,6 +6,14 @@ namespace ConcurrentRedBlackTree
         where TValue : class
         where TKey : IComparable<TKey>, IComparable, IEquatable<TKey>
     {
+        private enum DeleteOccupyState
+        {
+            Success = 0,
+            Failure = 1,
+
+            Exit = 2
+        }
+
         private RedBlackNode<TKey, TValue> _root = new RedBlackNode<TKey, TValue>();
 
         public Tuple<TKey, TValue> GetData(TKey key)
@@ -17,6 +25,18 @@ namespace ConcurrentRedBlackTree
         public void Add(TKey key, TValue value)
         {
             New(key, value);
+        }
+
+        public bool Remove(TKey key)
+        {
+            try
+            {
+                return Delete(key);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         public int MaxDepth()
@@ -126,14 +146,14 @@ namespace ConcurrentRedBlackTree
             {
                 RedBlackNode<TKey, TValue> workNode = _root;
 
-                var IsLocalAreaOccupied = false;
+                var isLocalAreaOccupied = false;
                 var isLeft = false;
 
                 while (true)
                 {
                     if (workNode.IsSentinel)
                     {
-                        IsLocalAreaOccupied = newNode.Parent == null || OccupyLocalArea(newNode, isLeft);
+                        isLocalAreaOccupied = newNode.Parent == null || OccupyLocalAreaForInsert(newNode, isLeft);
                         break;
                     }
 
@@ -157,7 +177,7 @@ namespace ConcurrentRedBlackTree
                     }
                 }
 
-                if (IsLocalAreaOccupied)
+                if (isLocalAreaOccupied)
                 {
                     break;
                 }
@@ -178,7 +198,7 @@ namespace ConcurrentRedBlackTree
             }
         }
 
-        private static bool OccupyLocalArea(RedBlackNode<TKey, TValue> node, bool isLeft)
+        private static bool OccupyLocalAreaForInsert(RedBlackNode<TKey, TValue> node, bool isLeft)
         {
             // occupy the node to be inserted
             if (!node.OccupyNodeAtomically())
@@ -261,7 +281,7 @@ namespace ConcurrentRedBlackTree
             return true;
         }
 
-        private static void MoveLocalAreaUpward(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working)
+        private static void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working)
         {
             RedBlackNode<TKey, TValue> newParent = null, newGrandParent = null, newUncle = null;
 
@@ -367,7 +387,7 @@ namespace ConcurrentRedBlackTree
 
                         // continue loop with grandparent
                         insertedNode = insertedNode.Parent.Parent;
-                        MoveLocalAreaUpward(insertedNode, working);
+                        MoveLocalAreaUpwardForInsert(insertedNode, working);
                     }
                     else
                     {
@@ -393,7 +413,7 @@ namespace ConcurrentRedBlackTree
 
                         // continue loop with grandparent
                         insertedNode = insertedNode.Parent.Parent;
-                        MoveLocalAreaUpward(insertedNode, working);
+                        MoveLocalAreaUpwardForInsert(insertedNode, working);
                     }
                     else
                     {
@@ -413,6 +433,447 @@ namespace ConcurrentRedBlackTree
             _root.Color = RedBlackNodeType.Black;
         }
 
+        private bool Delete(TKey key)
+        {
+            RedBlackNode<TKey, TValue> workNode = null, linkedNode = null, deleteNode = null;
+            var localArea = new RedBlackNode<TKey, TValue>[6];
+            while (true)
+            {
+                deleteNode = GetNode(key);
+                if(deleteNode == null)
+                {
+                    return false;
+                }
+
+                if (deleteNode.Left.IsSentinel || deleteNode.Right.IsSentinel)
+                {
+                    workNode = deleteNode;
+                }
+                else
+                {                    
+                    workNode = deleteNode.Right;
+                    while (!workNode.Left.IsSentinel)
+                    {
+                        workNode = workNode.Left;
+                    }
+                }
+
+                var status = OccupyLocalAreaForDelete(deleteNode, workNode, localArea);
+                if(status == DeleteOccupyState.Success)
+                {
+                    break;
+                }
+                else if(status == DeleteOccupyState.Exit)
+                {
+                    return false;
+                }
+            }
+
+            if(!workNode.Left.IsSentinel)
+            {
+                linkedNode = workNode.Left;
+            }
+            else
+            {
+                linkedNode = workNode.Right;
+            }
+
+            linkedNode.Parent = workNode.Parent;
+            if (workNode.Parent != null)
+            {
+                if (workNode == workNode.Parent.Left)
+                {
+                    workNode.Parent.Left = linkedNode;
+                }
+                else
+                {
+                    workNode.Parent.Right = linkedNode;
+                }
+            }
+            else
+            {
+                _root = linkedNode;
+            }
+
+            // copy the values from y (the replacement node) to the node being deleted.
+            // note: this effectively deletes the node. 
+            if (workNode != deleteNode)
+            {
+                deleteNode.Key = workNode.Key;
+                deleteNode.Data = workNode.Data;
+            }
+
+            if (workNode.Color == RedBlackNodeType.Black)
+            {
+                BalanceTreeAfterDelete(linkedNode);
+            }
+
+            foreach (var node in localArea)
+            {
+                node?.FreeNodeAtomically();
+            }
+            
+            return true;
+        }
+
+        private void BalanceTreeAfterDelete(RedBlackNode<TKey, TValue> linkedNode)
+        {
+            // maintain Red-Black tree balance after deleting node
+            while (linkedNode != _root && linkedNode.Color == RedBlackNodeType.Black)
+            {
+                RedBlackNode<TKey, TValue> workNode;
+                // determine sub tree from parent
+                if (linkedNode == linkedNode.Parent.Left)
+                {
+                    // y is x's sibling
+                    workNode = linkedNode.Parent.Right;
+                    if (workNode.Color == RedBlackNodeType.Red)
+                    {
+                        // x is black, y is red - make both black and rotate
+                        linkedNode.Parent.Color = RedBlackNodeType.Red;
+                        workNode.Color = RedBlackNodeType.Black;
+                        RotateLeft(linkedNode.Parent);
+                        workNode = linkedNode.Parent.Right;
+                    }
+                    if (workNode.Left.Color == RedBlackNodeType.Black &&
+                        workNode.Right.Color == RedBlackNodeType.Black)
+                    {
+                        // children are both black
+                        // change parent to red
+                        workNode.Color = RedBlackNodeType.Red;
+                        // move up the tree
+                        linkedNode = linkedNode.Parent;
+                    }
+                    else
+                    {
+                        if (workNode.Right.Color == RedBlackNodeType.Black)
+                        {
+                            workNode.Left.Color = RedBlackNodeType.Black;
+                            workNode.Color = RedBlackNodeType.Red;
+                            RotateRight(workNode);
+                            workNode = linkedNode.Parent.Right;
+                        }
+                        linkedNode.Parent.Color = RedBlackNodeType.Black;
+                        workNode.Color = linkedNode.Parent.Color;
+                        workNode.Right.Color = RedBlackNodeType.Black;
+                        RotateLeft(linkedNode.Parent);
+                        linkedNode = _root;
+                    }
+                }
+                else
+                {	// right subtree - same as code above with right and left swapped
+                    workNode = linkedNode.Parent.Left;
+                    if (workNode.Color == RedBlackNodeType.Red)
+                    {
+                        linkedNode.Parent.Color = RedBlackNodeType.Red;
+                        workNode.Color = RedBlackNodeType.Black;
+                        RotateRight(linkedNode.Parent);
+                        workNode = linkedNode.Parent.Left;
+                    }
+                    if (workNode.Right.Color == RedBlackNodeType.Black &&
+                        workNode.Left.Color == RedBlackNodeType.Black)
+                    {
+                        workNode.Color = RedBlackNodeType.Red;
+                        linkedNode = linkedNode.Parent;
+                    }
+                    else
+                    {
+                        if (workNode.Left.Color == RedBlackNodeType.Black)
+                        {
+                            workNode.Right.Color = RedBlackNodeType.Black;
+                            workNode.Color = RedBlackNodeType.Red;
+                            RotateLeft(workNode);
+                            workNode = linkedNode.Parent.Left;
+                        }
+                        workNode.Color = linkedNode.Parent.Color;
+                        linkedNode.Parent.Color = RedBlackNodeType.Black;
+                        workNode.Left.Color = RedBlackNodeType.Black;
+                        RotateRight(linkedNode.Parent);
+                        linkedNode = _root;
+                    }
+                }
+            }
+            linkedNode.Color = RedBlackNodeType.Black;
+        }
+
+        private DeleteOccupyState OccupyLocalAreaForDelete(RedBlackNode<TKey, TValue> deleteNode, RedBlackNode<TKey, TValue> workNode, RedBlackNode<TKey, TValue>[] localArea)
+        {
+            // occupy the node to be deleted
+            if (!deleteNode.OccupyNodeAtomically())
+            {
+                return DeleteOccupyState.Failure;
+            }
+
+            // check if correct node is locked
+            if(GetNode(deleteNode.Key) == null)
+            {
+                deleteNode.FreeNodeAtomically();
+                return DeleteOccupyState.Exit;
+            }
+
+            // if delete node and work node are different than lock work node as well
+            if(deleteNode != workNode)
+            {
+                if(!workNode.OccupyNodeAtomically())
+                {
+                    deleteNode.FreeNodeAtomically();
+                    return DeleteOccupyState.Failure;
+                }
+                var node = deleteNode.Right;
+                while (!node.Left.IsSentinel)
+                {
+                    node = node.Left;
+                }
+
+                if(node != workNode)
+                {
+                    deleteNode.FreeNodeAtomically();
+                    workNode.FreeNodeAtomically();
+                    return DeleteOccupyState.Failure;
+                }
+                localArea[0] = deleteNode;
+            }
+
+            RedBlackNode<TKey, TValue> child;
+            // occupy the child of work node
+            if(!workNode.Left.IsSentinel)
+            {
+                child = workNode.Left;
+            }
+            else
+            {
+                child = workNode.Right;
+            }
+
+            if(!child.OccupyNodeAtomically())
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                return DeleteOccupyState.Failure;
+            }
+
+            localArea[1] = child;
+            
+            // if parent is head no need to setup the local area
+            if (workNode.Parent == null)
+            {
+                return DeleteOccupyState.Failure;
+            }
+
+            bool isLeft = workNode.Parent.Left == workNode;
+
+            // occupy parent node atomically
+            if (!workNode.Parent.OccupyNodeAtomically())
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                child.FreeNodeAtomically();
+                return DeleteOccupyState.Failure;
+            }
+
+            if ((isLeft && workNode.Parent.Left != workNode) || (!isLeft && workNode.Parent.Right != workNode))
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                child.FreeNodeAtomically();
+                workNode.Parent.FreeNodeAtomically();
+                return DeleteOccupyState.Failure;
+            }
+
+            localArea[2] = workNode.Parent;
+
+            var sibling = isLeft ? workNode.Parent.Right : workNode.Parent.Left;
+
+            if (!sibling.OccupyNodeAtomically())
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                child.FreeNodeAtomically();
+                workNode.Parent.FreeNodeAtomically();
+                return DeleteOccupyState.Failure;
+            }
+
+            //check if sibling is not changed
+            if ((isLeft && workNode.Parent.Right != sibling) || (!isLeft && workNode.Parent.Left != sibling))
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                child.FreeNodeAtomically();
+                workNode.Parent.FreeNodeAtomically();
+                sibling.FreeNodeAtomically();
+                return DeleteOccupyState.Failure;
+            }
+
+            localArea[3] = sibling;
+
+            var siblingLeftChild = sibling.Left;
+            // lock left child of sibling
+            if(!siblingLeftChild.OccupyNodeAtomically())
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                child.FreeNodeAtomically();
+                workNode.Parent.FreeNodeAtomically();
+                sibling.FreeNodeAtomically();
+                return DeleteOccupyState.Failure;
+            }
+
+            if(sibling.Left != siblingLeftChild)
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                child.FreeNodeAtomically();
+                workNode.Parent.FreeNodeAtomically();
+                sibling.FreeNodeAtomically();
+                siblingLeftChild.FreeNodeAtomically();
+                return DeleteOccupyState.Failure;
+            }
+
+            localArea[4] = siblingLeftChild;
+
+            var siblingRightChild = sibling.Right;
+            // lock left child of sibling
+            if(!siblingRightChild.OccupyNodeAtomically())
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                child.FreeNodeAtomically();
+                workNode.Parent.FreeNodeAtomically();
+                sibling.FreeNodeAtomically();
+                siblingLeftChild.FreeNodeAtomically();
+                return DeleteOccupyState.Failure;
+            }
+
+            if(sibling.Right != siblingRightChild)
+            {
+                deleteNode.FreeNodeAtomically();
+                if(deleteNode != workNode)
+                {
+                    workNode.FreeNodeAtomically();
+                }
+                child.FreeNodeAtomically();
+                workNode.Parent.FreeNodeAtomically();
+                sibling.FreeNodeAtomically();
+                siblingLeftChild.FreeNodeAtomically();
+                siblingRightChild.FreeNodeAtomically();
+                return DeleteOccupyState.Failure;
+            }
+
+            localArea[5] = siblingRightChild;
+
+            return DeleteOccupyState.Success;
+        }
+
+        private static void MoveLocalAreaUpwardForDelete(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working)
+        {
+            RedBlackNode<TKey, TValue> newParent = null, newGrandParent = null, newUncle = null;
+
+            while (true)
+            {
+                if (node.Parent == null)
+                {
+                    break;
+                }
+
+                newParent = node.Parent;
+
+                // occupy parent node atomically
+                if (!newParent.OccupyNodeAtomically())
+                {
+                    continue;
+                }
+
+                // check if parent still pointing to node
+                if (newParent.Left != node && newParent.Right != node)
+                {
+                    newParent.FreeNodeAtomically();
+                    continue;
+                }
+
+                newGrandParent = newParent.Parent;
+
+                // if no parent we are done
+                if (newGrandParent == null)
+                {
+                    break;
+                }
+
+                // occupy grandparent   
+                if (!newGrandParent.OccupyNodeAtomically())
+                {
+                    newParent.FreeNodeAtomically();
+                    continue;
+                }
+
+                // if grand parent changed before occupying, return false
+                if (newGrandParent != newParent.Parent)
+                {
+                    // free grand parent
+                    newGrandParent.FreeNodeAtomically();
+                    newParent.FreeNodeAtomically();
+                    continue;
+                }
+
+                newUncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
+
+                if (newUncle.IsSentinel)
+                {
+                    break;
+                }
+
+                if (!newUncle.OccupyNodeAtomically())
+                {
+                    newGrandParent.FreeNodeAtomically();
+                    newParent.FreeNodeAtomically();
+                    continue;
+                }
+
+                //check if uncle is not changed
+                if (newUncle.Parent != newGrandParent)
+                {
+                    newUncle.FreeNodeAtomically();
+                    newGrandParent.FreeNodeAtomically();
+                    newParent.FreeNodeAtomically();
+                    continue;
+                }
+
+                break;
+            }
+
+            // free the locks
+            working[0]?.FreeNodeAtomically();
+            working[1]?.FreeNodeAtomically();
+            working[3]?.FreeNodeAtomically();
+
+            working[0] = working[2];
+            working[1] = newParent;
+            working[2] = newGrandParent;
+            working[3] = newUncle;
+        }
         private void RotateRight(RedBlackNode<TKey, TValue> rotateNode)
         {
             var workNode = rotateNode.Left;
