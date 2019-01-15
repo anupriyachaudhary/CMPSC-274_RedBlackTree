@@ -790,7 +790,7 @@ namespace ConcurrentRedBlackTree
 
         private static void MoveLocalAreaUpwardForDelete(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working)
         {
-            RedBlackNode<TKey, TValue> newParent = null, newGrandParent = null, newUncle = null;
+            RedBlackNode<TKey, TValue> newParent = null, newSibling = null, newsiblingLeftChild = null, newSiblingRightChild = null;
 
             while (true)
             {
@@ -807,57 +807,82 @@ namespace ConcurrentRedBlackTree
                     continue;
                 }
 
+                bool isNodeLeft = node.Parent.Left == node;
+
                 // check if parent still pointing to node
-                if (newParent.Left != node && newParent.Right != node)
+                if ((isLeft && newParent.Left != node) || (!isLeft && newParent.Right != node))
                 {
                     newParent.FreeNodeAtomically();
                     continue;
                 }
 
-                newGrandParent = newParent.Parent;
+                newSibling = isLeft ? newParent.Right : newParent.Left;
 
-                // if no parent we are done
-                if (newGrandParent == null)
+                // if no sibling we are done
+                if (newSibling == null)
                 {
                     break;
                 }
 
-                // occupy grandparent   
-                if (!newGrandParent.OccupyNodeAtomically())
+                // occupy sibling   
+                if (!newSibling.OccupyNodeAtomically())
                 {
                     newParent.FreeNodeAtomically();
                     continue;
                 }
 
-                // if grand parent changed before occupying, return false
-                if (newGrandParent != newParent.Parent)
+                // if sibling changed before occupying, return false
+                if ((isLeft && newParent.Right != newSibling) || (!isLeft && newParent.Left != newSibling))
                 {
                     // free grand parent
-                    newGrandParent.FreeNodeAtomically();
+                    newSibling.FreeNodeAtomically();
                     newParent.FreeNodeAtomically();
                     continue;
                 }
 
-                newUncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
+                newSiblingLeftChild = newSibling.Left;;
 
-                if (newUncle.IsSentinel)
+                if (newSiblingLeftChild.IsSentinel)
                 {
                     break;
                 }
 
-                if (!newUncle.OccupyNodeAtomically())
+                if (!newSiblingLeftChild.OccupyNodeAtomically())
                 {
-                    newGrandParent.FreeNodeAtomically();
+                    newSibling.FreeNodeAtomically();
                     newParent.FreeNodeAtomically();
                     continue;
                 }
 
-                //check if uncle is not changed
-                if (newUncle.Parent != newGrandParent)
+                //check if left sibling is not changed
+                if (newSibling.Left != newSiblingLeftChild)
                 {
-                    newUncle.FreeNodeAtomically();
-                    newGrandParent.FreeNodeAtomically();
                     newParent.FreeNodeAtomically();
+                    newSibling.FreeNodeAtomically();
+                    newSiblingLeftChild.FreeNodeAtomically();
+                    continue;
+                }
+
+                newSiblingRightChild = newSibling.Right;;
+
+                if (newSiblingRightChild.IsSentinel)
+                {
+                    break;
+                }
+
+                if (!newSiblingRightChild.OccupyNodeAtomically())
+                {
+                    newSibling.FreeNodeAtomically();
+                    newParent.FreeNodeAtomically();
+                    continue;
+                }
+
+                //check if left sibling is not changed
+                if (newSibling.Right != newSiblingRightChild)
+                {
+                    newParent.FreeNodeAtomically();
+                    newSibling.FreeNodeAtomically();
+                    newSiblingRightChild.FreeNodeAtomically();
                     continue;
                 }
 
@@ -865,15 +890,18 @@ namespace ConcurrentRedBlackTree
             }
 
             // free the locks
-            working[0]?.FreeNodeAtomically();
             working[1]?.FreeNodeAtomically();
             working[3]?.FreeNodeAtomically();
+            working[4]?.FreeNodeAtomically();
+            working[5]?.FreeNodeAtomically();
 
-            working[0] = working[2];
-            working[1] = newParent;
-            working[2] = newGrandParent;
-            working[3] = newUncle;
+            working[1] = working[2];
+            working[2] = newParent;
+            working[3] = newSibling;
+            working[4] = newSiblingLeftChild;
+            working[5] = newSiblingRightChild;
         }
+        
         private void RotateRight(RedBlackNode<TKey, TValue> rotateNode)
         {
             var workNode = rotateNode.Left;
