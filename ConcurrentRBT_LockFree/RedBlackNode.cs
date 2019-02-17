@@ -7,7 +7,9 @@ namespace ConcurrentRedBlackTree
         where TValue : class
         where TKey : IComparable, IComparable<TKey>, IEquatable<TKey>
     {
-        private int _status;
+        private int flag;
+
+        public Guid Marker {get; set; }
 
         public TValue Data { get; set; }
 
@@ -48,12 +50,12 @@ namespace ConcurrentRedBlackTree
 
         public void FreeNodeAtomically()
         {
-            Interlocked.CompareExchange(ref _status, 0, 1);
+            Interlocked.CompareExchange(ref flag, 0, 1);
         }
 
         public bool OccupyNodeAtomically()
         {
-            return 0 == Interlocked.CompareExchange(ref _status, 1, 0);
+            return 0 == Interlocked.CompareExchange(ref flag, 1, 0);
         }
     }
 }
