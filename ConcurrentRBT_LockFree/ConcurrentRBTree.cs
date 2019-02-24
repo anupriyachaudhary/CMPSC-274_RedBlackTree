@@ -11,9 +11,6 @@ namespace ConcurrentRedBlackTree
 
         private RedBlackNode<TKey, TValue> _root = new RedBlackNode<TKey, TValue>();
 
-        private Dictionary<Guid, MoveUpStruct<TKey, TValue>> moveUpStructDict
-            = new Dictionary<Guid, MoveUpStruct<TKey, TValue>>();
-
         public Tuple<TKey, TValue> GetData(TKey key)
         {
             var node = GetNode(key);
