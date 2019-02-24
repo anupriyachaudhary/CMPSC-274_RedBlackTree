@@ -29,6 +29,7 @@ namespace ConcurrentRedBlackTree
         {
             Key = default(TKey);
             Data = default(TValue);
+            Marker = Guid.Empty;
             Color = RedBlackNodeType.Black;
             IsSentinel = true;
             Left = null;
@@ -41,6 +42,7 @@ namespace ConcurrentRedBlackTree
         {
             Key = key;
             Data = data;
+            Marker = Guid.Empty;
             Color = RedBlackNodeType.Red;
             IsSentinel = false;
             Left = new RedBlackNode<TKey, TValue>();
