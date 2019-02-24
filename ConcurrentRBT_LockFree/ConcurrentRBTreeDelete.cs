@@ -310,7 +310,7 @@ namespace ConcurrentRedBlackTree
                             w.Left.Color = RedBlackNodeType.Black;
                             w.Color = RedBlackNodeType.Red;
                             RotateRight(w);
-                            FixUpCase3(localArea, intentionMarkers, myPID);
+                            FixUpCase3(localArea, myPID);
                             w = x.Parent.Right;
                         }
                         x.Parent.Color = RedBlackNodeType.Black;
