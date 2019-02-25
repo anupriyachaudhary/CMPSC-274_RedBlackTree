@@ -16,6 +16,6 @@ namespace ConcurrentRedBlackTree
 
         public Guid PidToIgnore {get; set;}
 
-        public RedBlackNode<TKey, TValue> Gp {get; set;}
+        // public RedBlackNode<TKey, TValue> Gp {get; set;}
     }
 }
