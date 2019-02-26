@@ -646,7 +646,15 @@ namespace ConcurrentRedBlackTree
 
         private bool IsIn(RedBlackNode<TKey, TValue> node, Guid pid)
         {
-            var moveUpStructList = moveUpStructDict[pid];
+            List<MoveUpStruct<TKey, TValue>> moveUpStructList;
+            if (moveUpStructDict.ContainsKey(pid))
+            {
+                moveUpStructList = moveUpStructDict[pid];
+            }
+            else
+            {
+                return false;
+            }
             var moveUpStruct = moveUpStructList[moveUpStructList.Count - 1];
 
             foreach (var n in moveUpStruct.Nodes)
@@ -678,11 +686,17 @@ namespace ConcurrentRedBlackTree
                     //nd is in inherited local area
                     else
                     {
-                        if(IsGoalNode(nd, pid))
+                        if(IsGoalNode(nodesToRelease, pid))
                         {
                             // release unneeded flags in moveUpStruct and discard moveUpStruct
-
-
+                            foreach (var moveUpStruct in  moveUpStructDict[pid])
+                            {
+                                foreach (var node in moveUpStruct.Nodes)
+                                {
+                                    node?.FreeNodeAtomically();
+                                }
+                            }
+                            moveUpStructDict.Remove(pid);
                         }                     
                     }
                 }
@@ -697,19 +711,40 @@ namespace ConcurrentRedBlackTree
             }
         }
 
-        private bool IsGoalNode(RedBlackNode<TKey, TValue> nd, Guid pid)
+        private bool IsGoalNode(List<RedBlackNode<TKey, TValue>> nodesToRelease, Guid pid)
         {
-            var moveUpStructList = moveUpStructDict[pid];
+            List<MoveUpStruct<TKey, TValue>> moveUpStructList;
+            if (moveUpStructDict.ContainsKey(pid))
+            {
+                moveUpStructList = moveUpStructDict[pid];
+            }
+            else
+            {
+                return false;
+            }
             var moveUpStruct = moveUpStructList[moveUpStructList.Count - 1];
             
             // Can Gp be changed by rotation ?????????
             var gp = moveUpStruct.Nodes[2].Parent;
 
-            if (nd == gp)
+            // Hold a flag on root
+            while(true)
             {
-                return true;
+                gp.OccupyNodeAtomically();
+                if(gp == moveUpStruct.Nodes[2].Parent)
+                {
+                    break;
+                }
+                gp.FreeNodeAtomically();
             }
-
+            
+            foreach (var node in nodesToRelease)
+            {
+                if (gp == node)
+                {
+                    return true;
+                }
+            }
             return false;
         }
 
