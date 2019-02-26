@@ -4,4 +4,4 @@ obj/
 bin/
 
 .idea/
-*.sln
+*.sln.DS_Store
