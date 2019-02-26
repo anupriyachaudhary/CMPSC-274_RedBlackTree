@@ -19,7 +19,7 @@ namespace ConcurrentRedBlackTree
             const int nodesPerThread = 20000;
             const int totalNodesToInsert = numOfThreads * nodesPerThread;
             const int nodesMaxKeyValue = 160000;
-            const int searchOperationsPerThread = 10000;
+            //const int searchOperationsPerThread = 10000;
 
             var rbTree = new ConcurrentRBTree<long, Data>();
 

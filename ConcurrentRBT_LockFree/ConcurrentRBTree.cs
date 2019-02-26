@@ -14,6 +14,7 @@ namespace ConcurrentRedBlackTree
         public Tuple<TKey, TValue> GetData(TKey key)
         {
             var node = GetNode(key);
+            node.FreeNodeAtomically();
             return node == null ? null : new Tuple<TKey, TValue>(node.Key, node.Data);
         }
 
@@ -40,28 +41,6 @@ namespace ConcurrentRedBlackTree
             }
 
             return CountInternal(treeNode.Left) + CountInternal(treeNode.Right) + 1;
-        }
-
-        private RedBlackNode<TKey, TValue> GetNode(TKey key)
-        {
-            // begin at root
-            RedBlackNode<TKey, TValue> treeNode = _root;
-
-            // traverse tree until node is found
-            while (!treeNode.IsSentinel)
-            {
-                var result = key.CompareTo(treeNode.Key);
-                if (result == 0)
-                {
-                    return treeNode;
-                }
-
-                treeNode = result < 0
-                    ? treeNode.Left
-                    : treeNode.Right;
-            }
-
-            return null;
         }
 
         private static int MaxDepthInternal(RedBlackNode<TKey, TValue> node)

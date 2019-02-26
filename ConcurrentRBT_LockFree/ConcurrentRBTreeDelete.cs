@@ -12,7 +12,7 @@ namespace ConcurrentRedBlackTree
 
         private Dictionary<Guid, List<MoveUpStruct<TKey, TValue>>> moveUpStructDict
             = new Dictionary<Guid, List<MoveUpStruct<TKey, TValue>>>();
-       
+
         public bool Remove(TKey key)
         {
             Guid pid = Guid.NewGuid();
@@ -33,6 +33,55 @@ namespace ConcurrentRedBlackTree
             }
         }
         
+        private RedBlackNode<TKey, TValue> GetNode(TKey key)
+        {
+            // begin at root
+            RedBlackNode<TKey, TValue> treeNode = _root;
+
+            // Hold a flag on root
+            if(!treeNode.OccupyNodeAtomically())
+            {
+                return null;
+            }
+            // check if _root is locked
+            if(treeNode != _root)
+            {
+                treeNode.FreeNodeAtomically();
+                return null;
+            }
+            var previousNode = treeNode;
+
+            // traverse tree until node is found
+            while (!treeNode.IsSentinel)
+            {
+                var result = key.CompareTo(treeNode.Key);
+                if (result == 0)
+                {
+                    return treeNode;
+                }
+
+                treeNode = result < 0 ? treeNode.Left : treeNode.Right;
+                // Hold a flag on new treenode
+                if(!treeNode.OccupyNodeAtomically())
+                {
+                    previousNode.FreeNodeAtomically();
+                    return null;
+                }
+                // check if correct node is locked
+                if(treeNode != (result < 0 ? previousNode.Left : previousNode.Right))
+                {
+                    previousNode.FreeNodeAtomically();
+                    treeNode.FreeNodeAtomically();
+                    return null;
+                }
+                previousNode.FreeNodeAtomically();
+                previousNode = treeNode;
+            }
+
+            treeNode.FreeNodeAtomically();
+            return null;
+        }
+
         private bool Delete(TKey key, Guid pid)
         {
             RedBlackNode<TKey, TValue> y = null, z = null, x = null;
@@ -40,52 +89,25 @@ namespace ConcurrentRedBlackTree
             
             while (true)
             {
+                // GetNode will return a locked node
                 z = GetNode(key);
 
-                if(z == null || z.Marker != Guid.Empty)
+                if(z == null)
                 {
                     return false;
                 }
-
-                // Hold a flag on z
-                if (!z.OccupyNodeAtomically())
-                {
-                    continue;
-                }
-
                 // check if correct node is locked
-                if((z.Key.CompareTo(key) != 0) || GetNode(key) == null || z.Marker != Guid.Empty)
+                if(GetNode(key) == null || z.Marker != Guid.Empty)
                 {
                     z.FreeNodeAtomically();
                     return false;
                 }
 
-                // Find key-order successor
-                if (z.Left.IsSentinel || z.Right.IsSentinel)
+                // Find key-order successor, locked y is returned
+                y = FindSuccessor(z);               
+                if(y == null)
                 {
-                    y = z;
-                }
-                else
-                {    
-                    y = FindSuccessor(z);               
-                }
-
-                // if z and y are different than hold a flag on y as well
-                if(z != y)
-                {
-                    if(!y.OccupyNodeAtomically())
-                    {
-                        z.FreeNodeAtomically();
-                        continue;
-                    }
-
-                    var node = FindSuccessor(z);
-                    if(node != y)
-                    {
-                        z.FreeNodeAtomically();
-                        y.FreeNodeAtomically();
-                        continue;
-                    }
+                    return false;
                 }
                 //we  now hold a flag on y and z
 
@@ -162,12 +184,49 @@ namespace ConcurrentRedBlackTree
 
         private RedBlackNode<TKey, TValue> FindSuccessor(RedBlackNode<TKey, TValue> z)
         {
-            var node = z.Right;
-            while (!node.Left.IsSentinel)
+            if (z.Left.IsSentinel || z.Right.IsSentinel)
             {
-                node = node.Left;
+                return z;
             }
-            return node;
+
+            var nextNode = z.Right;
+            // Hold a flag on root
+            if(!nextNode.OccupyNodeAtomically())
+            {
+                return null;
+            }
+            // check if correct node is locked
+            if(nextNode != z.Right)
+            {
+                nextNode.FreeNodeAtomically();
+                return null;
+            }
+            
+            var successor = nextNode;
+
+            while (true)
+            {
+                nextNode = successor.Left;
+                // Hold a flag on new treenode
+                if(!nextNode.OccupyNodeAtomically())
+                {
+                    successor.FreeNodeAtomically();
+                    return null;
+                }
+                // check if correct node is locked
+                if(nextNode != successor.Left)
+                {
+                    successor.FreeNodeAtomically();
+                    nextNode.FreeNodeAtomically();
+                    return null;
+                }
+                if (nextNode.IsSentinel)
+                {
+                    nextNode.FreeNodeAtomically();
+                    return successor;
+                }
+                successor = nextNode;
+            }
         }
 
         private bool SetupLocalAreaForDelete(
