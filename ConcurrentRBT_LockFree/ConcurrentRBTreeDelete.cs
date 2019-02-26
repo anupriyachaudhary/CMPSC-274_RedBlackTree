@@ -37,7 +37,6 @@ namespace ConcurrentRedBlackTree
         {
             RedBlackNode<TKey, TValue> y = null, z = null, x = null;
             var localArea = new RedBlackNode<TKey, TValue>[5];
-            var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
             
             while (true)
             {
@@ -90,7 +89,7 @@ namespace ConcurrentRedBlackTree
                 }
                 //we  now hold a flag on y and z
 
-                if(!SetupLocalAreaForDelete(y, localArea, intentionMarkers, pid, z))
+                if(!SetupLocalAreaForDelete(y, localArea, pid, z))
                 {
                     y.FreeNodeAtomically();
                     if(y != z)
@@ -138,11 +137,21 @@ namespace ConcurrentRedBlackTree
 
             if (y.Color == RedBlackNodeType.Black)
             {
-                BalanceTreeAfterDelete(x, localArea, intentionMarkers, pid);
+                BalanceTreeAfterDelete(x, localArea, pid);
             }
             else
             {
-                 // Release flags and markers of local area
+                // Release markers of local area
+                var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
+                while(!GetFlagsForMarkers(localArea[1], pid, intentionMarkers, z))
+                foreach (var node in intentionMarkers)
+                {
+                    node.Marker  = Guid.Empty;
+                }
+                ReleaseFlags(pid, false, intentionMarkers.ToList());
+                
+
+                // Release flags of local area
                 foreach (var node in localArea)
                 {
                     node?.FreeNodeAtomically();
@@ -169,7 +178,6 @@ namespace ConcurrentRedBlackTree
         private bool SetupLocalAreaForDelete(
             RedBlackNode<TKey, TValue> y,
             RedBlackNode<TKey, TValue>[] localArea,
-            RedBlackNode<TKey, TValue>[] intentionMarkers,
             Guid pid,
             RedBlackNode<TKey, TValue> z = null)
         {
@@ -288,7 +296,7 @@ namespace ConcurrentRedBlackTree
             localArea[3] = wlc;
             localArea[4] = wrc;
 
-            if(!GetFlagsAndMarkersAbove(yp, localArea, intentionMarkers, pid, 0, z))
+            if(!GetFlagsAndMarkersAbove(yp, localArea, pid, 0, z))
             {
                 x.FreeNodeAtomically();
                 w.FreeNodeAtomically();
@@ -306,7 +314,6 @@ namespace ConcurrentRedBlackTree
          private void BalanceTreeAfterDelete(
             RedBlackNode<TKey, TValue> x,
             RedBlackNode<TKey, TValue>[] localArea,
-            RedBlackNode<TKey, TValue>[] intentionMarkers,
             Guid pid)
         {
             bool done = false, didMoveUp = false;
@@ -325,7 +332,7 @@ namespace ConcurrentRedBlackTree
                         w.Color = RedBlackNodeType.Black;
                         RotateLeft(x.Parent);
                         w = x.Parent.Right;
-                        FixUpCase1(localArea, intentionMarkers, pid);
+                        FixUpCase1(localArea, pid);
                     }
                     if (w.Left.Color == RedBlackNodeType.Black &&
                         w.Right.Color == RedBlackNodeType.Black)
@@ -334,7 +341,7 @@ namespace ConcurrentRedBlackTree
                         // change parent to red
                         w.Color = RedBlackNodeType.Red;
                         // move up the tree
-                        x = MoveDeleterUp(localArea, intentionMarkers, pid);
+                        x = MoveDeleterUp(localArea, pid);
                     }
                     else
                     {
@@ -363,13 +370,13 @@ namespace ConcurrentRedBlackTree
                         w.Color = RedBlackNodeType.Black;
                         RotateRight(x.Parent);
                         w = x.Parent.Left;
-                        FixUpCase1(localArea, intentionMarkers, pid);
+                        FixUpCase1(localArea, pid);
                     }
                     if (w.Right.Color == RedBlackNodeType.Black &&
                         w.Left.Color == RedBlackNodeType.Black)
                     {
                         w.Color = RedBlackNodeType.Red;
-                        x = MoveDeleterUp(localArea, intentionMarkers, pid);
+                        x = MoveDeleterUp(localArea, pid);
                     }
                     else
                     {
@@ -421,7 +428,6 @@ namespace ConcurrentRedBlackTree
         private bool GetFlagsAndMarkersAbove(
             RedBlackNode<TKey, TValue> start,
             RedBlackNode<TKey, TValue>[] localArea,
-            RedBlackNode<TKey, TValue>[] intentionMarkers,
             Guid pid,
             int numAdditional,
             RedBlackNode<TKey, TValue> z = null) 
@@ -437,51 +443,48 @@ namespace ConcurrentRedBlackTree
             {
                 bool IsSetMarkerSuccess = setMarker(markerPositions.ToList(), pid, z);
 
-                if (IsSetMarkerSuccess)
-                {
-                    intentionMarkers[0] = markerPositions[0];
-                    intentionMarkers[1] = markerPositions[1];
-                    intentionMarkers[2] = markerPositions[2];
-                    intentionMarkers[3] = markerPositions[3];
-                }
-
                 // release flags on four nodes after putting markers
-                var nodesToRelease = new List<RedBlackNode<TKey, TValue>>(markerPositions);
-                ReleaseFlags(pid, false, nodesToRelease);
+                ReleaseFlags(pid, false, markerPositions.ToList());
 
                 return IsSetMarkerSuccess;
             }
 
             else if (numAdditional == 1)
             {
-                bool IsAdditionalMarkerSuccessful = true;
+                var nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
 
                 // get additional marker(s) above
                 RedBlackNode<TKey, TValue> firstnew = markerPositions[3].Parent;
                 
                 if (!IsIn(firstnew, pid) && !firstnew.OccupyNodeAtomically()) 
                 {
-                    IsAdditionalMarkerSuccessful = false;
+                    nodesToRelease.Add(markerPositions[0]);
+                    nodesToRelease.Add(markerPositions[1]);
+                    nodesToRelease.Add(markerPositions[2]);
+                    nodesToRelease.Add(markerPositions[3]);
+                    ReleaseFlags(pid, false, nodesToRelease.ToList());
+                    return false;
                 }
                 if (firstnew != markerPositions[3].Parent && !SpacingRuleIsSatisfied(firstnew, pid)) 
                 { 
-                    IsAdditionalMarkerSuccessful = false;
+                    nodesToRelease.Add(markerPositions[0]);
+                    nodesToRelease.Add(markerPositions[1]);
+                    nodesToRelease.Add(markerPositions[2]);
+                    nodesToRelease.Add(markerPositions[3]);
+                    nodesToRelease.Add(firstnew);
+                    ReleaseFlags(pid, false, nodesToRelease.ToList());
+                    return false;
                 }
                 firstnew.Marker = pid;
 
-                if (IsAdditionalMarkerSuccessful)
-                {
-                    intentionMarkers[0] = markerPositions[1];
-                    intentionMarkers[1] = markerPositions[2];
-                    intentionMarkers[2] = markerPositions[3];
-                    intentionMarkers[3] = firstnew;
-                    localArea[1] = markerPositions[0];
-                }
-
-                var nodesToRelease = new List<RedBlackNode<TKey, TValue>>(intentionMarkers);
+                nodesToRelease.Add(markerPositions[1]);
+                nodesToRelease.Add(markerPositions[2]);
+                nodesToRelease.Add(markerPositions[3]);
+                nodesToRelease.Add(firstnew);
+                localArea[1] = markerPositions[0];
                 ReleaseFlags(pid, true, nodesToRelease);
-
-                return IsAdditionalMarkerSuccessful;
+                
+                return true;;
             }
 
             return true;
@@ -720,7 +723,6 @@ namespace ConcurrentRedBlackTree
 
         private void FixUpCase1(
             RedBlackNode<TKey, TValue>[] localArea,
-            RedBlackNode<TKey, TValue>[] intentionMarkers,
             Guid pid)
         {
             //  correct relocated intention markers for other processes
@@ -730,6 +732,12 @@ namespace ConcurrentRedBlackTree
             }
 
             // Now correct local area and intention markers for the given process
+
+            // release highest held intention marker (fifth intention marker)
+            var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
+            while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
+            intentionMarkers[3].Marker  = Guid.Empty;
+            ReleaseFlags(pid, false, intentionMarkers.ToList());
 
             //  release flag on old wr
             localArea[4].FreeNodeAtomically();
@@ -753,19 +761,10 @@ namespace ConcurrentRedBlackTree
             localArea[2] = neww;
             localArea[3] = newwl;
             localArea[4] = newwr;
-
-            // release highest held intention marker (fifth intention marker)
-            intentionMarkers[3].Marker  = Guid.Empty;
-
-            intentionMarkers[3] = intentionMarkers[2];
-            intentionMarkers[2] = intentionMarkers[1];
-            intentionMarkers[1] = intentionMarkers[0];
-            intentionMarkers[0] = localArea[2];
         }
 
         private RedBlackNode<TKey, TValue> MoveDeleterUp(
             RedBlackNode<TKey, TValue>[] localArea,
-            RedBlackNode<TKey, TValue>[] intentionMarkers,
             Guid pid)
         {
             // Check for a moveUpStruct from another process (due to Move-Up rule). Get direct pointers
@@ -782,7 +781,7 @@ namespace ConcurrentRedBlackTree
 
             // Extend intention markers (getting flags to set them) by one more
             // Also convert marker on oldgp to a flag i.e. set localArea[1] to oldgp
-            while(!GetFlagsAndMarkersAbove(oldp, localArea, intentionMarkers, pid, 1));
+            while(!GetFlagsAndMarkersAbove(oldp, localArea, pid, 1));
 
             // get flags on rest of the new local area (w, wlc, wrc)
             var newp = newx.Parent;
