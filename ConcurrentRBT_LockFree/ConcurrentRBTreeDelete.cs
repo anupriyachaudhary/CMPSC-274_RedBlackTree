@@ -402,7 +402,6 @@ namespace ConcurrentRedBlackTree
                     && localArea[1].Marker == localArea[2].Marker 
                     && localArea[2].Marker == localArea[4].Marker )
                 {
-                    localArea[1].Marker = Guid.Empty; 
                     localArea[2].Parent.Marker =  localArea[2].Marker;
                     isGPmarkerChanged = true;
                 }
@@ -415,7 +414,7 @@ namespace ConcurrentRedBlackTree
                 //  release markers on local area
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
                 while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
-                if(!isGPmarkerChanged)
+                if(isGPmarkerChanged)
                 { 
                     intentionMarkers[0].Marker = localArea[2].Marker;
                 }
@@ -743,7 +742,6 @@ namespace ConcurrentRedBlackTree
             }
 
             // Now correct local area and intention markers for the given process
-
             // release highest held intention marker (fifth intention marker)
             var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
             while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
@@ -888,6 +886,11 @@ namespace ConcurrentRedBlackTree
                 w.Right.Marker != Guid.Empty;
             if(case1 || case2 || case3)
             {
+                // Let pid release their markers ??????????? or pass their markers as well?????
+                var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
+                while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
+                ReleaseFlags(pid, false, intentionMarkers.ToList());
+
                 // Build structure listing the nodes we hold flags on
                 // (moveUpStruct) and specifying the PID of the other
                 // "too-close" process (marker[left[w]) and the goal (GP). 
