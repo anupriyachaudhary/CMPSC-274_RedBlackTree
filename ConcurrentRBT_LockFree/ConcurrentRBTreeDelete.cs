@@ -101,8 +101,7 @@ namespace ConcurrentRedBlackTree
                 else
                 {
                     break;
-                }
-                    
+                }      
             }
 
             x = y.Left.IsSentinel ? y.Right  : y.Left;
@@ -155,10 +154,6 @@ namespace ConcurrentRedBlackTree
                 foreach (var node in localArea)
                 {
                     node?.FreeNodeAtomically();
-                }
-                foreach (var node in intentionMarkers)
-                {
-                    node.Marker = Guid.Empty;
                 }
             }
 
@@ -402,6 +397,7 @@ namespace ConcurrentRedBlackTree
 
                 //  correct relocated intention markers for other processes
                 bool isGPmarkerChanged = false;
+                // ????????????
                 if (localArea[1].Marker != Guid.Empty 
                     && localArea[1].Marker == localArea[2].Marker 
                     && localArea[2].Marker == localArea[4].Marker )
@@ -416,12 +412,27 @@ namespace ConcurrentRedBlackTree
                     localArea[2].Marker = Guid.Empty;
                 }
 
-                //  release flags on local area
+                //  release markers on local area
+                var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
+                while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
                 if(!isGPmarkerChanged)
-                {
-
+                { 
+                    intentionMarkers[0].Marker = localArea[2].Marker;
                 }
+                else
+                {
+                    intentionMarkers[0].Marker = Guid.Empty;
+                }
+                intentionMarkers[1].Marker = Guid.Empty;
+                intentionMarkers[2].Marker = Guid.Empty;
+                intentionMarkers[3].Marker = Guid.Empty;
+                ReleaseFlags(pid, false, intentionMarkers.ToList());
 
+                //  release flags on local area
+                foreach (var node in localArea)
+                {
+                    node?.FreeNodeAtomically();
+                }
             }
         }
 
