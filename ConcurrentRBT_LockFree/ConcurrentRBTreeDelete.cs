@@ -16,7 +16,7 @@ namespace ConcurrentRedBlackTree
         public bool Remove(TKey key)
         {
             Guid pid = Guid.NewGuid();
-            moveUpStructDict.Add(pid, new List<MoveUpStruct<TKey, TValue>>());
+            //moveUpStructDict.Add(pid, new List<MoveUpStruct<TKey, TValue>>());
             locks.Add(pid, new object());
             try
             {
@@ -33,7 +33,7 @@ namespace ConcurrentRedBlackTree
             }
         }
         
-        private RedBlackNode<TKey, TValue> GetNode(TKey key)
+        private RedBlackNode<TKey, TValue> GetNodeForDelete(TKey key)
         {
             // begin at root
             RedBlackNode<TKey, TValue> treeNode = _root;
@@ -90,14 +90,14 @@ namespace ConcurrentRedBlackTree
             while (true)
             {
                 // GetNode will return a locked node
-                z = GetNode(key);
+                z = GetNodeForDelete(key);
 
                 if(z == null)
                 {
                     return false;
                 }
                 // check if correct node is locked
-                if(GetNode(key) == null || z.Marker != Guid.Empty)
+                if(z.Marker != Guid.Empty)
                 {
                     z.FreeNodeAtomically();
                     return false;
@@ -225,6 +225,7 @@ namespace ConcurrentRedBlackTree
                     nextNode.FreeNodeAtomically();
                     return successor;
                 }
+                successor.FreeNodeAtomically();
                 successor = nextNode;
             }
         }
@@ -236,6 +237,7 @@ namespace ConcurrentRedBlackTree
             RedBlackNode<TKey, TValue> z = null)
         {
             var x = y.Left.IsSentinel ? y.Right : y.Left;
+            var b  = (y != z);
             bool isNotCheckZ = (z == null || y != z);
 
             // occupy the node which will replace y

@@ -15,11 +15,12 @@ namespace ConcurrentRedBlackTree
     {
         static void Main(string[] args)
         {
-            const int numOfThreads = 4;
-            const int nodesPerThread = 20000;
-            const int totalNodesToInsert = numOfThreads * nodesPerThread;
-            const int nodesMaxKeyValue = 160000;
-            //const int searchOperationsPerThread = 10000;
+            const int numOfThreads = 1;
+            const long nodesPerThread = 10000;
+            const long totalNodesToInsert = numOfThreads * nodesPerThread;
+            const long nodesMaxKeyValue = 100000;
+            const long totalNodesToDelete = 1;
+            // const int searchOperationsPerThread = 10000;
 
             var rbTree = new ConcurrentRBTree<long, Data>();
 
@@ -28,10 +29,62 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
             Console.WriteLine();
 
-            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue);
+            SimpleInsertDeleteTest(rbTree, totalNodesToInsert, totalNodesToDelete, nodesMaxKeyValue);
 
-            //ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
+            // ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue);
+
+            // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
+
+        public static void SimpleInsertDeleteTest(ConcurrentRBTree<long, Data> rbTree, 
+            long totalNodesToInsert, long totalNodesToDelete, long nodesMaxKeyValue)
+        {
+            var rand = new Random();            
+
+            var key = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
+            rbTree.Add(key, new Data {Value = key.ToString()});
+
+            var keys = new HashSet<long>();
+            long keyToDelete = key;
+
+            for (long i = 0; i < totalNodesToInsert; i++)
+            {
+                long value;
+                while (true)
+                {
+                    value = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
+                    if (!keys.Contains(value) && value != key)
+                    {
+                        break;
+                    }
+                }
+
+                keys.Add(value);
+                if(i == totalNodesToInsert/2)
+                {
+                    keyToDelete = key;
+                }
+            }
+
+            var values = keys.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
+
+            for (var j = 0; j < totalNodesToInsert; j++)
+            {
+                rbTree.Add(values[j].Item1, values[j].Item2);
+            }
+
+            Console.WriteLine($"Node count before deletion: {(rbTree.Count()-1)}");
+            Console.WriteLine();
+
+            //********************** DELETE OPERATION **************************//
+
+            rbTree.Remove(keyToDelete);
+
+            Console.WriteLine($"Node count after deletion: {(rbTree.Count()-1)}");
+            Console.WriteLine();
+        
+        }
+
 
         public static void ConcurrentInsertTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
             long nodesPerThread, long totalNodesToInsert, long nodesMaxKeyValue)
