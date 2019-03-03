@@ -152,7 +152,19 @@ namespace ConcurrentRedBlackTree
             {
                 z.Key = y.Key;
                 z.Data = y.Data;
-                z.FreeNodeAtomically();
+                // Release z only when it is not in local area
+                bool isZinLocalArea = false;
+                foreach(var node in localArea)
+                {
+                    if(node == z)
+                    {
+                        isZinLocalArea = true;
+                    }
+                }
+                if(!isZinLocalArea)
+                {
+                    z.FreeNodeAtomically();
+                }
                 y.FreeNodeAtomically();  
             }
 
@@ -237,8 +249,6 @@ namespace ConcurrentRedBlackTree
             RedBlackNode<TKey, TValue> z = null)
         {
             var x = y.Left.IsSentinel ? y.Right : y.Left;
-            var b  = (y != z);
-            bool isNotCheckZ = (z == null || y != z);
 
             // occupy the node which will replace y
             if (!x.OccupyNodeAtomically())
@@ -248,6 +258,7 @@ namespace ConcurrentRedBlackTree
             localArea[0] = x;
 
             var yp = y.Parent;
+            bool isNotCheckZ = (z == null || yp != z);
 
             if(isNotCheckZ && !yp.OccupyNodeAtomically())
             {
@@ -536,7 +547,7 @@ namespace ConcurrentRedBlackTree
                     ReleaseFlags(pid, false, nodesToRelease.ToList());
                     return false;
                 }
-                if (firstnew != markerPositions[3].Parent && !SpacingRuleIsSatisfied(firstnew, pid)) 
+                if (firstnew != markerPositions[3].Parent && !SpacingRuleIsSatisfied(firstnew, pid, false, null)) 
                 { 
                     nodesToRelease.Add(markerPositions[0]);
                     nodesToRelease.Add(markerPositions[1]);
@@ -568,9 +579,11 @@ namespace ConcurrentRedBlackTree
         {
             var nodesToUnMark = new List<RedBlackNode<TKey, TValue>>();
 
-            foreach (var node in nodesToMark)
+            RedBlackNode<TKey, TValue> node;
+            for (var i = 0; i < 3; i++)
             {
-                if (!SpacingRuleIsSatisfied(node, pid, z)) 
+                node = nodesToMark[i];
+                if (!SpacingRuleIsSatisfied(node, pid, true, z)) 
                 { 
                     foreach (var n in nodesToUnMark)
                     {
@@ -581,6 +594,17 @@ namespace ConcurrentRedBlackTree
                 node.Marker = pid;
                 nodesToUnMark.Add(node);
             }
+
+            node = nodesToMark[3];
+            if (!SpacingRuleIsSatisfied(node, pid, false, z)) 
+            { 
+                foreach (var n in nodesToUnMark)
+                {
+                    n.Marker = Guid.Empty;       
+                }
+                return false;
+            }
+            node.Marker = pid;
 
             return true;
         }
@@ -753,6 +777,7 @@ namespace ConcurrentRedBlackTree
         private bool SpacingRuleIsSatisfied(
             RedBlackNode<TKey, TValue> t,
             Guid pid,
+            bool isParentOccupied,
             RedBlackNode<TKey, TValue> z = null)
         {
             // we already hold flags on both t and z.
@@ -772,16 +797,20 @@ namespace ConcurrentRedBlackTree
             
             if(z == null || z != tp)
             {
-                if (!IsIn(tp, pid) && !tp.OccupyNodeAtomically())
+                if (!isParentOccupied)
                 {
-                    return false;
+                    if (!IsIn(tp, pid) && !tp.OccupyNodeAtomically())
+                    {
+                        return false;
+                    }
+                    // verify parent is unchanged
+                    if (tp != t.Parent)
+                    {
+                        tp.FreeNodeAtomically();
+                        return false;
+                    }
                 }
-                // verify parent is unchanged
-                if (tp != t.Parent)
-                {
-                    tp.FreeNodeAtomically();
-                    return false;
-                }
+
                 if (tp.Marker != Guid.Empty)
                 {
                     tp.FreeNodeAtomically();
@@ -803,8 +832,9 @@ namespace ConcurrentRedBlackTree
                 return false;
             }
 
-            var PIDtoIgnore = getPIDtoIgnore(pid);
-            if (ts.Marker != Guid.Empty && ts.Marker != PIDtoIgnore)
+            Guid PIDtoIgnore;
+            bool IsTooCloseProcess = getPIDtoIgnore(pid, PIDtoIgnore);
+            if (ts.Marker != Guid.Empty && (!IsTooCloseProcess || ts.Marker != PIDtoIgnore))
             {
                 isMarkerAllowed = false;
             }
@@ -820,11 +850,16 @@ namespace ConcurrentRedBlackTree
             return isMarkerAllowed;
         }
 
-        private Guid getPIDtoIgnore(Guid pid)
+        private bool getPIDtoIgnore(Guid pid, Guid PIDtoIgnore)
         {
-            var moveUpStructList = moveUpStructDict[pid];
-            var moveUpStruct = moveUpStructList[moveUpStructList.Count - 1];
-            return moveUpStruct.PidToIgnore;   
+            if (moveUpStructDict.ContainsKey(pid))
+            {
+                var moveUpStructList = moveUpStructDict[pid];
+                var moveUpStruct = moveUpStructList[moveUpStructList.Count - 1];
+                PIDtoIgnore = moveUpStruct.PidToIgnore;  
+                return true;
+            }
+            return  false; 
         }
 
         private void FixUpCase1(

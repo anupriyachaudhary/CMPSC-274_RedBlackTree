@@ -15,11 +15,11 @@ namespace ConcurrentRedBlackTree
     {
         static void Main(string[] args)
         {
-            const int numOfThreads = 1;
-            const long nodesPerThread = 10000;
+            const int numOfThreads = 2;
+            const long nodesPerThread = 4;
             const long totalNodesToInsert = numOfThreads * nodesPerThread;
             const long nodesMaxKeyValue = 100000;
-            const long totalNodesToDelete = 1;
+            // const long totalNodesToDelete = 1;
             // const int searchOperationsPerThread = 10000;
 
             var rbTree = new ConcurrentRBTree<long, Data>();
@@ -29,56 +29,39 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
             Console.WriteLine();
 
-            SimpleInsertDeleteTest(rbTree, totalNodesToInsert, totalNodesToDelete, nodesMaxKeyValue);
+            //SimpleInsertDeleteTest(rbTree);
 
-            // ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue);
+            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue);
 
             // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
 
-        public static void SimpleInsertDeleteTest(ConcurrentRBTree<long, Data> rbTree, 
-            long totalNodesToInsert, long totalNodesToDelete, long nodesMaxKeyValue)
+        public static void SimpleInsertDeleteTest(ConcurrentRBTree<long, Data> rbTree)
         {
-            var rand = new Random();            
-
-            var key = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
-            rbTree.Add(key, new Data {Value = key.ToString()});
-
-            var keys = new HashSet<long>();
-            long keyToDelete = key;
-
-            for (long i = 0; i < totalNodesToInsert; i++)
+            for (long i = 1; i < 3; i++)
             {
-                long value;
-                while (true)
-                {
-                    value = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
-                    if (!keys.Contains(value) && value != key)
-                    {
-                        break;
-                    }
-                }
+                rbTree.Add(i, new Data {Value = i.ToString()});
+            }
 
-                keys.Add(value);
-                if(i == totalNodesToInsert/2)
+            var keysToDelete = new List<long>();
+            for (long j = 3; j < 4; j++)
+            {
+                rbTree.Add(j, new Data {Value = j.ToString()});
+                if(j % 2 == 1)
                 {
-                    keyToDelete = key;
+                    keysToDelete.Add(j);
                 }
             }
 
-            var values = keys.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
-
-            for (var j = 0; j < totalNodesToInsert; j++)
-            {
-                rbTree.Add(values[j].Item1, values[j].Item2);
-            }
-
-            Console.WriteLine($"Node count before deletion: {(rbTree.Count()-1)}");
+            Console.WriteLine($"Node count before deletion: {rbTree.Count()}");
             Console.WriteLine();
 
             //********************** DELETE OPERATION **************************//
 
-            rbTree.Remove(keyToDelete);
+            foreach(var k in keysToDelete)
+            {
+                rbTree.Remove(k);
+            }
 
             Console.WriteLine($"Node count after deletion: {(rbTree.Count()-1)}");
             Console.WriteLine();
