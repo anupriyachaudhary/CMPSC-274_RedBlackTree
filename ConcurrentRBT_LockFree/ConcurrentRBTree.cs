@@ -8,8 +8,14 @@ namespace ConcurrentRedBlackTree
         where TValue : class
         where TKey : IComparable<TKey>, IComparable, IEquatable<TKey>
     {
+        private RedBlackNode<TKey, TValue> _dummy;
 
-        private RedBlackNode<TKey, TValue> _root = new RedBlackNode<TKey, TValue>();
+        private RedBlackNode<TKey, TValue> _root;
+
+        public ConcurrentRBTree()
+        {
+            _dummy = new RedBlackNode<TKey, TValue>(default(TKey), default(TValue));
+        }
 
         private RedBlackNode<TKey, TValue> GetNode(TKey key)
         {
@@ -102,6 +108,13 @@ namespace ConcurrentRedBlackTree
 
             Insert(newNode);
 
+            if(_root.Left.IsSentinel && _root.Right.IsSentinel)
+            {
+                _dummy.FreeNodeAtomically();
+                _dummy.Left.FreeNodeAtomically();
+                return;
+            }
+
             var localArea = new RedBlackNode<TKey, TValue>[4];
             localArea[0] = newNode;
             localArea[1] = newNode.Parent;
@@ -134,14 +147,19 @@ namespace ConcurrentRedBlackTree
 
                 while (true)
                 {
+                    if(workNode == null)
+                    {
+                        isLocalAreaOccupied = OccupyLocalAreaForInsert(newNode, isLeft);
+                        break;
+                    }
                     if (workNode.IsSentinel)
                     {
-                        isLocalAreaOccupied = newNode.Parent == null || OccupyLocalAreaForInsert(newNode, isLeft);
+                        newNode.Parent = workNode.Parent;
+                        isLocalAreaOccupied = OccupyLocalAreaForInsert(newNode, isLeft);
                         break;
                     }
 
                     // find Parent
-                    newNode.Parent = workNode;
                     int result = newNode.Key.CompareTo(workNode.Key);
                     if (result == 0)
                     {
@@ -177,11 +195,13 @@ namespace ConcurrentRedBlackTree
             else
             {
                 // first node added
+                newNode.Parent = _dummy;
+                _dummy.Left = newNode;
                 _root = newNode;
             }
         }
 
-        private static bool OccupyLocalAreaForInsert(RedBlackNode<TKey, TValue> node, bool isLeft)
+        private bool OccupyLocalAreaForInsert(RedBlackNode<TKey, TValue> node, bool isLeft)
         {
             // occupy the node to be inserted
             if (!node.OccupyNodeAtomically())
@@ -189,9 +209,13 @@ namespace ConcurrentRedBlackTree
                 return false;
             }
 
-            // if parent is head no need to setup the local area
-            if (node.Parent == null)
+            // If first node insert
+            if(_root == null)
             {
+                if(!_dummy.OccupyNodeAtomically())
+                {
+                    return false;
+                }
                 return true;
             }
 
@@ -213,7 +237,7 @@ namespace ConcurrentRedBlackTree
             var grandParent = node.Parent.Parent;
 
             // if no parent we are done
-            if (grandParent == null)
+            if (grandParent == _dummy)
             {
                 return true;
             }
@@ -264,13 +288,13 @@ namespace ConcurrentRedBlackTree
             return true;
         }
 
-        private static void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working)
+        private void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working)
         {
             RedBlackNode<TKey, TValue> newParent = null, newGrandParent = null, newUncle = null;
 
             while (true)
             {
-                if (node.Parent == null)
+                if (node.Parent == _dummy)
                 {
                     break;
                 }
@@ -293,7 +317,7 @@ namespace ConcurrentRedBlackTree
                 newGrandParent = newParent.Parent;
 
                 // if no parent we are done
-                if (newGrandParent == null)
+                if (newGrandParent == _dummy)
                 {
                     break;
                 }

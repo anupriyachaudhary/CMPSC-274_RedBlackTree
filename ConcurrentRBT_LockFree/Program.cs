@@ -74,9 +74,6 @@ namespace ConcurrentRedBlackTree
         {
             var rand = new Random();
 
-            var key = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
-            rbTree.Add(key, new Data {Value = key.ToString()});
-
             var keys = new HashSet<long>();
 
             for (var i = 0; i < totalNodesToInsert; i++)
