@@ -15,10 +15,10 @@ namespace ConcurrentRedBlackTree
     {
         static void Main(string[] args)
         {
-            const int numOfThreads = 2;
-            const long nodesPerThread = 4;
+            const int numOfThreads = 12;
+            const long nodesPerThread = 10000;
             const long totalNodesToInsert = numOfThreads * nodesPerThread;
-            const long nodesMaxKeyValue = 100000;
+            const long nodesMaxKeyValue = 10000000;
             // const long totalNodesToDelete = 1;
             // const int searchOperationsPerThread = 10000;
 
@@ -82,7 +82,7 @@ namespace ConcurrentRedBlackTree
                 while (true)
                 {
                     value = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
-                    if (!keys.Contains(value) && value != key)
+                    if (!keys.Contains(value))
                     {
                         break;
                     }
@@ -107,6 +107,7 @@ namespace ConcurrentRedBlackTree
                         rbTree.Add(values[j].Item1, values[j].Item2);
                     }
                 });
+                threads[i].Name = i.ToString();
             }
 
             Console.WriteLine("************* Insertion Test ***************");
@@ -136,7 +137,7 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine($"Total time spent in insertion: {watch.ElapsedMilliseconds} ms");
             Console.WriteLine();
 
-            Console.WriteLine($"Node count after insertion: {(rbTree.Count()-1)}");
+            Console.WriteLine($"Node count after insertion: {(rbTree.Count())}");
             Console.WriteLine();
 
             Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");

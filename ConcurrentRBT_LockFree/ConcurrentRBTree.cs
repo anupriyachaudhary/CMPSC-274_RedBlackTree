@@ -15,6 +15,15 @@ namespace ConcurrentRedBlackTree
         public ConcurrentRBTree()
         {
             _dummy = new RedBlackNode<TKey, TValue>(default(TKey), default(TValue));
+            _dummy.Color = RedBlackNodeType.Black;
+
+            var current = _dummy;
+            for(var i = 0; i < 5; i++)
+            {
+                current.Parent = new RedBlackNode<TKey, TValue>(default(TKey), default(TValue));
+                current.Parent.Color = RedBlackNodeType.Black;
+                current = current.Parent;
+            }
         }
 
         private RedBlackNode<TKey, TValue> GetNode(TKey key)
@@ -110,17 +119,22 @@ namespace ConcurrentRedBlackTree
 
             if(_root.Left.IsSentinel && _root.Right.IsSentinel)
             {
+                _root.Color = RedBlackNodeType.Black;
                 _dummy.FreeNodeAtomically();
                 _dummy.Left.FreeNodeAtomically();
                 return;
             }
-
             var localArea = new RedBlackNode<TKey, TValue>[4];
             localArea[0] = newNode;
             localArea[1] = newNode.Parent;
-            localArea[2] = newNode.Parent?.Parent;
 
-            if (newNode.Parent?.Parent != null)
+            if(newNode.Parent != _dummy && newNode.Parent.Parent != _dummy)
+            {
+                localArea[2] = newNode.Parent.Parent;
+            }
+            
+
+            if (newNode.Parent != _dummy && newNode.Parent.Parent != _dummy)
             {
                 localArea[3] = newNode.Parent.Parent.Left == newNode.Parent
                     ? newNode.Parent.Parent.Right
@@ -154,12 +168,12 @@ namespace ConcurrentRedBlackTree
                     }
                     if (workNode.IsSentinel)
                     {
-                        newNode.Parent = workNode.Parent;
                         isLocalAreaOccupied = OccupyLocalAreaForInsert(newNode, isLeft);
                         break;
                     }
 
                     // find Parent
+                    newNode.Parent = workNode;
                     int result = newNode.Key.CompareTo(workNode.Key);
                     if (result == 0)
                     {
@@ -214,6 +228,7 @@ namespace ConcurrentRedBlackTree
             {
                 if(!_dummy.OccupyNodeAtomically())
                 {
+                    node.FreeNodeAtomically();
                     return false;
                 }
                 return true;
@@ -456,7 +471,7 @@ namespace ConcurrentRedBlackTree
                 workNode.Parent = rotateNode.Parent;
             }
 
-            if (rotateNode.Parent != null)
+            if (rotateNode.Parent != _dummy)
             {
                 if (rotateNode == rotateNode.Parent.Right)
                 {
@@ -469,6 +484,8 @@ namespace ConcurrentRedBlackTree
             }
             else
             {
+                workNode.Parent = _dummy;
+                _dummy.Left = workNode;
                 _root = workNode;
             }
 
@@ -494,7 +511,7 @@ namespace ConcurrentRedBlackTree
                 workNode.Parent = rotateNode.Parent;
             }
 
-            if (rotateNode.Parent != null)
+            if (rotateNode.Parent != _dummy)
             {
                 if (rotateNode == rotateNode.Parent.Left)
                 {
@@ -507,6 +524,8 @@ namespace ConcurrentRedBlackTree
             }
             else
             {
+                workNode.Parent = _dummy;
+                _dummy.Left = workNode;
                 _root = workNode;
             }
 
