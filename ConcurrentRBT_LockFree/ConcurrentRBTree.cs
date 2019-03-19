@@ -235,7 +235,7 @@ namespace ConcurrentRedBlackTree
             }
 
             // occupy parent node atomically
-            if (!node.Parent.OccupyNodeAtomically())
+            if (node.Parent == null || !node.Parent.OccupyNodeAtomically())
             {
                 node.FreeNodeAtomically();
                 return false;
