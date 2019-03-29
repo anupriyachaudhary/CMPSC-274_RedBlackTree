@@ -176,14 +176,13 @@ namespace ConcurrentRedBlackTree
             {
                 // Release markers of local area
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
-                while(!GetFlagsForMarkers(localArea[1], pid, intentionMarkers, z))
+                while(!GetFlagsForMarkers(localArea[1], pid, intentionMarkers, z));
                 foreach (var node in intentionMarkers)
                 {
                     node.Marker  = Guid.Empty;
                 }
                 ReleaseFlags(pid, false, intentionMarkers.ToList());
                 
-
                 // Release flags of local area
                 foreach (var node in localArea)
                 {
@@ -358,17 +357,20 @@ namespace ConcurrentRedBlackTree
                     }
                     return false;
                 }
-            }
 
-            localArea[3] = wlc;
-            localArea[4] = wrc;
+                localArea[3] = wlc;
+                localArea[4] = wrc;
+            }
 
             if(!GetFlagsAndMarkersAbove(yp, localArea, pid, 0, z))
             {
                 x.FreeNodeAtomically();
                 w.FreeNodeAtomically();
-                wlc.FreeNodeAtomically();
-                wrc.FreeNodeAtomically();
+                if(!w.IsSentinel)
+                {
+                    wlc.FreeNodeAtomically();
+                    wrc.FreeNodeAtomically();
+                }
                 if(isNotCheckZ)
                 {
                     yp.FreeNodeAtomically();
@@ -420,8 +422,8 @@ namespace ConcurrentRedBlackTree
                             FixUpCase3(localArea, pid);
                             w = x.Parent.Right;
                         }
-                        x.Parent.Color = RedBlackNodeType.Black;
                         w.Color = x.Parent.Color;
+                        x.Parent.Color = RedBlackNodeType.Black;
                         w.Right.Color = RedBlackNodeType.Black;
                         RotateLeft(x.Parent);
                         didMoveUp = ApplyMoveUpRule(localArea, pid);
@@ -485,7 +487,12 @@ namespace ConcurrentRedBlackTree
 
                 //  release markers on local area
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
-                while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
+                var localAreaTopNode = localArea[1];
+                if(localAreaTopNode.Parent == localArea[2])
+                {
+                    localAreaTopNode = localArea[2];
+                }
+                while(!GetFlagsForMarkers(localAreaTopNode, pid, intentionMarkers, null));
                 if(isGPmarkerChanged)
                 { 
                     intentionMarkers[0].Marker = localArea[2].Marker;
@@ -563,7 +570,10 @@ namespace ConcurrentRedBlackTree
                 nodesToRelease.Add(markerPositions[2]);
                 nodesToRelease.Add(markerPositions[3]);
                 nodesToRelease.Add(firstnew);
+
                 localArea[1] = markerPositions[0];
+                markerPositions[0].Marker = Guid.Empty;
+
                 ReleaseFlags(pid, true, nodesToRelease);
                 
                 return true;;
@@ -948,7 +958,7 @@ namespace ConcurrentRedBlackTree
             // release flag on old local area
             List<RedBlackNode<TKey, TValue>> nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
             nodesToRelease.Add(oldx);
-            nodesToRelease.Add(oldwlc);
+            nodesToRelease.Add(oldw);
             nodesToRelease.Add(oldwlc);
             nodesToRelease.Add(oldwrc);
             ReleaseFlags(pid, true, nodesToRelease);

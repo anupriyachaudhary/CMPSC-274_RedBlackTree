@@ -29,22 +29,22 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
             Console.WriteLine();
 
-            //SimpleInsertDeleteTest(rbTree);
+            SimpleInsertDeleteTest(rbTree);
 
-            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue);
+            //ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue);
 
             // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
 
         public static void SimpleInsertDeleteTest(ConcurrentRBTree<long, Data> rbTree)
         {
-            for (long i = 1; i < 3; i++)
+            for (long i = 1; i < 20; i++)
             {
                 rbTree.Add(i, new Data {Value = i.ToString()});
             }
 
             var keysToDelete = new List<long>();
-            for (long j = 3; j < 4; j++)
+            for (long j = 20; j < 30; j++)
             {
                 rbTree.Add(j, new Data {Value = j.ToString()});
                 if(j % 2 == 1)
@@ -63,7 +63,7 @@ namespace ConcurrentRedBlackTree
                 rbTree.Remove(k);
             }
 
-            Console.WriteLine($"Node count after deletion: {(rbTree.Count()-1)}");
+            Console.WriteLine($"Node count after deletion: {(rbTree.Count())}");
             Console.WriteLine();
         
         }
