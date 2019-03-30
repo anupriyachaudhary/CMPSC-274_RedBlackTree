@@ -482,18 +482,18 @@ namespace ConcurrentRedBlackTree
                 //  correct relocated intention markers for other processes
                 bool isGPmarkerChanged = false;
                 // ????????????
-                // if (localArea[1].Marker != Guid.Empty 
-                //     && localArea[1].Marker == localArea[2].Marker 
-                //     && localArea[2].Marker == localArea[4].Marker )
-                // {
-                //     localArea[2].Parent.Marker =  localArea[2].Marker;
-                //     isGPmarkerChanged = true;
-                // }
-                // if (localArea[2].Marker != Guid.Empty && localArea[2].Marker == localArea[3].Marker )
-                // {
-                //     localArea[1].Marker = localArea[2].Marker;
-                //     localArea[2].Marker = Guid.Empty;
-                // }
+                if (localArea[1].Marker != Guid.Empty 
+                    && localArea[1].Marker == localArea[2].Marker 
+                    && localArea[2].Marker == localArea[4].Marker )
+                {
+                    localArea[2].Parent.Marker =  localArea[2].Marker;
+                    isGPmarkerChanged = true;
+                }
+                if (localArea[2].Marker != Guid.Empty && localArea[2].Marker == localArea[3].Marker )
+                {
+                    localArea[1].Marker = localArea[2].Marker;
+                    localArea[2].Marker = Guid.Empty;
+                }
 
                 //  release markers on local area
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
