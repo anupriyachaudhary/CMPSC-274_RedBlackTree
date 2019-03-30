@@ -23,7 +23,7 @@ namespace ConcurrentRedBlackTree
 
             // Variables for delete
             const int numOfThreads = 1;
-            const int nodesPerThread = 10000;
+            const int nodesPerThread = 1000;
             const int totalNodesToDelete = numOfThreads * nodesPerThread;
             const long totalNodesToInsert = totalNodesToDelete * 4;
             const long nodesMaxKeyValue = totalNodesToInsert * 10;
