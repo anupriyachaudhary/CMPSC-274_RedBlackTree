@@ -898,7 +898,7 @@ namespace ConcurrentRedBlackTree
             // Now correct local area and intention markers for the given process
             // release highest held intention marker (fifth intention marker)
             var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
-            while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
+            while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null));
             intentionMarkers[3].Marker  = Guid.Empty;
             ReleaseFlags(pid, false, intentionMarkers.ToList());
 

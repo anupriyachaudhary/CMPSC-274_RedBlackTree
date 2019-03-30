@@ -23,7 +23,7 @@ namespace ConcurrentRedBlackTree
 
             // Variables for delete
             const int numOfThreads = 1;
-            const int nodesPerThread = 10;
+            const int nodesPerThread = 10000;
             const int totalNodesToDelete = numOfThreads * nodesPerThread;
             const long totalNodesToInsert = totalNodesToDelete * 4;
             const long nodesMaxKeyValue = totalNodesToInsert * 10;
@@ -40,15 +40,14 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
             Console.WriteLine();
 
-            SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
+            //SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
 
             //ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue);
 
-            //ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
+            ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
 
             // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
-
 
         public static void ConcurrentInsert(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
             long nodesPerThread, HashSet<long> keys)
