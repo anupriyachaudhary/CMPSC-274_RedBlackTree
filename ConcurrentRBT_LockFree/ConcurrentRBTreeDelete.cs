@@ -479,42 +479,32 @@ namespace ConcurrentRedBlackTree
             {
                 x.Color = RedBlackNodeType.Black;
 
-                //  correct relocated intention markers for other processes
-                bool isGPmarkerChanged = false;
-                // ????????????
-                if (localArea[1].Marker != Guid.Empty 
-                    && localArea[1].Marker == localArea[2].Marker 
-                    && localArea[2].Marker == localArea[4].Marker )
+                //  release markers on local area
+                var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
+                var localAreaTopNode = (localArea[1].Parent == localArea[2]) ? localArea[2] : localArea[1];
+                while(!GetFlagsForMarkers(localAreaTopNode, pid, intentionMarkers, null));
+                foreach(var node in intentionMarkers)
                 {
-                    localArea[2].Parent.Marker =  localArea[2].Marker;
-                    isGPmarkerChanged = true;
+                    node.Marker = Guid.Empty;
                 }
-                if (localArea[2].Marker != Guid.Empty && localArea[2].Marker == localArea[3].Marker )
+                ReleaseFlags(pid, false, intentionMarkers.ToList());
+
+                //  correct relocated intention markers for other processes
+                if (localArea[2].Marker != Guid.Empty 
+                    && localArea[3].Marker == localArea[2].Marker
+                    && localArea[1].Marker == Guid.Empty)
                 {
                     localArea[1].Marker = localArea[2].Marker;
                     localArea[2].Marker = Guid.Empty;
                 }
-
-                //  release markers on local area
-                var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
-                var localAreaTopNode = localArea[1];
-                if(localAreaTopNode.Parent == localArea[2])
+                if (localArea[2].Marker != Guid.Empty 
+                    && localArea[4].Marker == localArea[2].Marker
+                    && localArea[1].Marker == localArea[2].Marker)
                 {
-                    localAreaTopNode = localArea[2];
+                    while(!localArea[2].Parent.OccupyNodeAtomically());
+                    localArea[2].Parent.Marker =  localArea[2].Marker;
+                    localArea[2].Parent.FreeNodeAtomically();
                 }
-                while(!GetFlagsForMarkers(localAreaTopNode, pid, intentionMarkers, null));
-                if(isGPmarkerChanged)
-                { 
-                    intentionMarkers[0].Marker = localArea[2].Marker;
-                }
-                else
-                {
-                    intentionMarkers[0].Marker = Guid.Empty;
-                }
-                intentionMarkers[1].Marker = Guid.Empty;
-                intentionMarkers[2].Marker = Guid.Empty;
-                intentionMarkers[3].Marker = Guid.Empty;
-                ReleaseFlags(pid, false, intentionMarkers.ToList());
 
                 //  release flags on local area
                 foreach (var node in localArea)
@@ -773,7 +763,7 @@ namespace ConcurrentRedBlackTree
             // Can Gp be changed by rotation ?????????
             var gp = moveUpStruct.Nodes[2].Parent;
 
-            // Hold a flag on root
+            // Hold a flag on gp
             while(true)
             {
                 gp.OccupyNodeAtomically();
@@ -887,10 +877,18 @@ namespace ConcurrentRedBlackTree
             Guid pid)
         {
             //  correct relocated intention markers for other processes
-            if (localArea[2].Marker != Guid.Empty && localArea[2].Marker == localArea[3].Marker)
+            if (localArea[2].Marker != Guid.Empty 
+                && localArea[3].Marker == localArea[2].Marker
+                && localArea[1].Marker == Guid.Empty)
             {
                 localArea[1].Marker = localArea[2].Marker;
                 localArea[2].Marker = Guid.Empty;
+            }
+            if (localArea[2].Marker != Guid.Empty 
+                && localArea[4].Marker == localArea[2].Marker
+                && localArea[1].Marker == localArea[2].Marker)
+            {
+                Console.WriteLine("FixUpCase1: This should not happen!");
             }
 
             // Now correct local area and intention markers for the given process
@@ -920,7 +918,6 @@ namespace ConcurrentRedBlackTree
             } 
 
             localArea[2] = neww;
-
             if (neww == localArea[1].Right)
             {
                 localArea[3] = newwl;
@@ -956,11 +953,11 @@ namespace ConcurrentRedBlackTree
             // get flags on rest of the new local area (w, wlc, wrc)
             var newp = newx.Parent;
             var neww = newx == newp.Left ? newp.Right : newp.Left;
-
             if (!IsIn(neww, pid))
             {
                 while(!neww.OccupyNodeAtomically());
             } 
+
             var newwlc = neww.Left;
             var newwrc = neww.Right;
             if (!IsIn(newwlc, pid))
@@ -971,8 +968,8 @@ namespace ConcurrentRedBlackTree
             {
                 while(!newwrc.OccupyNodeAtomically());
             } 
-            localArea[2] = neww;
 
+            localArea[2] = neww;
             if (neww == localArea[1].Right)
             {
                 localArea[3] = newwlc;
@@ -999,15 +996,6 @@ namespace ConcurrentRedBlackTree
             RedBlackNode<TKey, TValue>[] localArea,
             Guid pid)
         {
-            //  correct relocated intention markers for other processes
-            if (localArea[1].Marker != Guid.Empty 
-                && localArea[1].Marker == localArea[2].Marker 
-                && localArea[2].Marker == localArea[4].Marker )
-            {
-                localArea[3].Marker = localArea[2].Marker;
-                localArea[1].Marker = Guid.Empty; 
-            }
-
             var newSiblingNewChild = (localArea[3] == localArea[1].Right) ? localArea[3].Left : localArea[3].Right;
 
             if (!IsIn(newSiblingNewChild, pid))
@@ -1015,15 +1003,29 @@ namespace ConcurrentRedBlackTree
                 while(!newSiblingNewChild.OccupyNodeAtomically());
             }
 
+            //  correct relocated intention markers for other processes
             if (localArea[2].Marker != Guid.Empty 
-                && localArea[2].Marker == localArea[3].Marker
-                && localArea[2].Marker == newSiblingNewChild.Marker)
+                && localArea[1].Marker == localArea[2].Marker 
+                && localArea[4].Marker == localArea[2].Marker )
+            {
+                localArea[3].Marker = localArea[2].Marker;
+                localArea[1].Marker = Guid.Empty; 
+            }
+
+            if (localArea[2].Marker != Guid.Empty && localArea[3].Marker == localArea[2].Marker
+                && newSiblingNewChild.Marker == localArea[2].Marker && localArea[1].Marker == Guid.Empty)
             {
                 localArea[1].Marker = localArea[2].Marker;
                 localArea[2].Marker = Guid.Empty;
             }
 
-            //  release flag on old wr
+            if (localArea[2].Marker != Guid.Empty && localArea[3].Marker == localArea[2].Marker
+                && newSiblingNewChild.Marker == localArea[2].Marker && localArea[1].Marker == localArea[2].Marker)
+            {
+                Console.WriteLine("FixUpCase3: This should not happen!");
+            }
+
+            // Correct Local area
             localArea[4].FreeNodeAtomically();
 
             var movedNode = localArea[3];
@@ -1048,28 +1050,37 @@ namespace ConcurrentRedBlackTree
             // Check in our local area to see if two processes beneath
             // use have been brought too close together by our rotations. 
             // The three cases correspond to Figures 17, 18 and 19.
-            var x = localArea[0];
-            var w = localArea[2];
-            var wc1 = localArea[3];
-            var wc2 = localArea[4];
+            var w = localArea[4];
+            var wChild_p1 = w.Right;
+            var wChild_p2 = w.Left;
+            if(w == w.Parent.Left)
+            {
+                wChild_p1 = w.Left;
+                wChild_p2 = w.Right;
+            }
 
             var case1 = w.Marker == w.Parent.Marker &&
-                w.Marker == wc2.Marker &&
+                w.Marker == wChild_p1.Marker &&
                 w.Marker != Guid.Empty &&
-                wc1.Marker != Guid.Empty;
+                wChild_p2.Marker != Guid.Empty;
 
-            var case2 = w.Marker == wc2.Marker &&
+            var case2 =  wChild_p1.Marker == w.Marker &&
                 w.Marker != Guid.Empty &&
-                wc1.Marker != Guid.Empty;
+                wChild_p2.Marker != Guid.Empty;
 
             var case3 = w.Marker == Guid.Empty &&
-                wc1.Marker != Guid.Empty &&
-                wc2.Marker != Guid.Empty;
+                wChild_p1.Marker != Guid.Empty &&
+                wChild_p2.Marker != Guid.Empty;
+
             if(case1 || case2 || case3)
             {
                 // Let pid release their markers ??????????? or pass their markers as well?????
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
-                while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
+                while(!GetFlagsForMarkers(w.Parent, pid, intentionMarkers, null));
+                foreach(var node in intentionMarkers)
+                {
+                    node.Marker = Guid.Empty;
+                }
                 ReleaseFlags(pid, false, intentionMarkers.ToList());
 
                 // Build structure listing the nodes we hold flags on
@@ -1080,11 +1091,11 @@ namespace ConcurrentRedBlackTree
                 var newMoveUpStruct = new MoveUpStruct<TKey, TValue>();
                 newMoveUpStruct.Nodes.Add(localArea[0]);
                 newMoveUpStruct.Nodes.Add(localArea[1]);
-                newMoveUpStruct.Nodes.Add(localArea[2]);
+                newMoveUpStruct.Nodes.Add(localArea[2]);    // top node
                 newMoveUpStruct.Nodes.Add(localArea[3]);
                 newMoveUpStruct.Nodes.Add(localArea[4]);
-                newMoveUpStruct.PidToIgnore = w.Left.Marker;
-                // newMoveUpStruct.Gp = localArea[2].Parent ???????????? Gp is not locked, what if it changes
+                newMoveUpStruct.PidToIgnore = wChild_p2.Marker;
+                // newMoveUpStruct.Gp = w.Parent.Parent ???????????? Gp is not locked, what if it changes
 
                 var inheritedMoveUpStructs = new List<MoveUpStruct<TKey, TValue>>();
 
@@ -1094,7 +1105,7 @@ namespace ConcurrentRedBlackTree
                 }
                 inheritedMoveUpStructs.Add(newMoveUpStruct);
 
-                moveUpStructDict[w.Right.Marker] = inheritedMoveUpStructs;
+                moveUpStructDict[wChild_p1.Marker] = inheritedMoveUpStructs;
             }
             return false;
         }
@@ -1103,7 +1114,7 @@ namespace ConcurrentRedBlackTree
         {
             lock (locks[pid])
             {
-                moveUpStructDict[pid].Add( moveUpStruct);
+                moveUpStructDict[pid].Add(moveUpStruct);
             }
         }
 

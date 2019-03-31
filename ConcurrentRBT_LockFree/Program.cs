@@ -22,8 +22,8 @@ namespace ConcurrentRedBlackTree
             // const long nodesMaxKeyValue = 10000000;
 
             // Variables for delete
-            const int numOfThreads = 1;
-            const int nodesPerThread = 1000;
+            const int numOfThreads = 2;
+            const int nodesPerThread = 10;
             const int totalNodesToDelete = numOfThreads * nodesPerThread;
             const long totalNodesToInsert = totalNodesToDelete * 4;
             const long nodesMaxKeyValue = totalNodesToInsert * 10;
@@ -41,55 +41,9 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
 
             //SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
-
             //ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue);
-
             ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
-
             // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
-        }
-
-        public static void ConcurrentInsert(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
-            long nodesPerThread, HashSet<long> keys)
-        {
-            var values = keys.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
-
-            var threads = new Thread[numOfThreads];
-
-            for (var i = 0; i < threads.Length; i++)
-            {
-                var iLocal = i;
-                threads[i] = new Thread(() =>
-                {
-                    var start = iLocal * nodesPerThread;
-                    var end = start + nodesPerThread - 1;
-                    for (var j = start; j <= end; j++)
-                    {
-                        rbTree.Add(values[j].Item1, values[j].Item2);
-                    }
-                });
-            }
-
-            // starting inserts
-            var watch = new Stopwatch();
-            watch.Start();
-
-            foreach (var thread in threads)
-            {
-                thread.Start();
-            }
-
-            foreach (var thread in threads)
-            {
-                thread.Join();
-            }
-
-            watch.Stop();
-
-            Console.WriteLine($"Node count after insertion: {(rbTree.Count())}");
-            Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");
-            Console.WriteLine();
-            Console.WriteLine();
         }
 
         public static void ConcurrentDeleteTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
@@ -166,6 +120,49 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine($"Node count after deletion: {(rbTree.Count())}");
             Console.WriteLine();
 
+            Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");
+            Console.WriteLine();
+            Console.WriteLine();
+        }
+
+        public static void ConcurrentInsert(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
+            long nodesPerThread, HashSet<long> keys)
+        {
+            var values = keys.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
+
+            var threads = new Thread[numOfThreads];
+
+            for (var i = 0; i < threads.Length; i++)
+            {
+                var iLocal = i;
+                threads[i] = new Thread(() =>
+                {
+                    var start = iLocal * nodesPerThread;
+                    var end = start + nodesPerThread - 1;
+                    for (var j = start; j <= end; j++)
+                    {
+                        rbTree.Add(values[j].Item1, values[j].Item2);
+                    }
+                });
+            }
+
+            // starting inserts
+            var watch = new Stopwatch();
+            watch.Start();
+
+            foreach (var thread in threads)
+            {
+                thread.Start();
+            }
+
+            foreach (var thread in threads)
+            {
+                thread.Join();
+            }
+
+            watch.Stop();
+
+            Console.WriteLine($"Node count after insertion: {(rbTree.Count())}");
             Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");
             Console.WriteLine();
             Console.WriteLine();
