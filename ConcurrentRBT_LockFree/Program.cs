@@ -22,8 +22,8 @@ namespace ConcurrentRedBlackTree
             // const long nodesMaxKeyValue = 10000000;
 
             // Variables for delete
-            const int numOfThreads = 2;
-            const int nodesPerThread = 10;
+            const int numOfThreads = 4;
+            const int nodesPerThread = 1000;
             const int totalNodesToDelete = numOfThreads * nodesPerThread;
             const long totalNodesToInsert = totalNodesToDelete * 4;
             const long nodesMaxKeyValue = totalNodesToInsert * 10;
@@ -67,6 +67,9 @@ namespace ConcurrentRedBlackTree
                 keys.Add(value);
             }
 
+            // var set = string.Join(", ", keys);
+            // Console.WriteLine(set);
+
             ConcurrentInsert(rbTree, numOfThreads, nodesPerThread * 4, keys);
 
 
@@ -74,7 +77,10 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
 
             var randomKeys = keys.OrderBy(x => rand.Next()).Take(totalNodesToDelete);
-            List<long> keysToDelete= randomKeys.ToList();
+            List<long> keysToDelete = randomKeys.ToList();
+
+            // set = string.Join(", ", keysToDelete);
+            // Console.WriteLine(set);
 
             var threads = new Thread[numOfThreads];
 
@@ -87,7 +93,8 @@ namespace ConcurrentRedBlackTree
                     var end = start + nodesPerThread - 1;
                     for (var j = start; j <= end; j++)
                     {
-                        rbTree.Remove(keysToDelete[j]);
+                        Console.WriteLine($"Key = {keysToDelete[j]} is {rbTree.Remove(keysToDelete[j])}");
+                        //rbTree.Remove(keysToDelete[j]);
                     }
                 });
                 threads[i].Name = i.ToString();
