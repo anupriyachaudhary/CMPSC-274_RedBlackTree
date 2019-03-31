@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -8,18 +9,17 @@ namespace ConcurrentRedBlackTree
         where TValue : class
         where TKey : IComparable<TKey>, IComparable, IEquatable<TKey>
     {
-        private readonly Dictionary<Guid, object> locks = new Dictionary<Guid, object>();
+        private readonly object moveUpLock = new object();
 
-        private Dictionary<Guid, List<MoveUpStruct<TKey, TValue>>> moveUpStructDict
-            = new Dictionary<Guid, List<MoveUpStruct<TKey, TValue>>>();
+        private ConcurrentDictionary<Guid, List<MoveUpStruct<TKey, TValue>>> moveUpStructDict
+            = new ConcurrentDictionary<Guid, List<MoveUpStruct<TKey, TValue>>>();
 
         public bool Remove(TKey key)
         {
             Guid pid = Guid.NewGuid();
-            //moveUpStructDict.Add(pid, new List<MoveUpStruct<TKey, TValue>>());
-            locks.Add(pid, new object());
             try
             {
+                Console.WriteLine($"Deletion of key = {key} started!");
                 return Delete(key, pid);
             }
             catch (Exception)
@@ -28,8 +28,7 @@ namespace ConcurrentRedBlackTree
             }
             finally
             {
-                moveUpStructDict.Remove(pid);
-                locks.Remove(pid);
+                moveUpStructDict.TryRemove(pid, out var _);
             }
         }
         
@@ -180,7 +179,13 @@ namespace ConcurrentRedBlackTree
             {
                 // Release markers of local area
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
-                while(!GetFlagsForMarkers(localArea[1], pid, intentionMarkers, z));
+                while(true)
+                {
+                    if(GetFlagsForMarkers(localArea[1], pid, intentionMarkers, z))
+                    {
+                        break;
+                    }
+                }
                 foreach (var node in intentionMarkers)
                 {
                     node.Marker  = Guid.Empty;
@@ -485,7 +490,13 @@ namespace ConcurrentRedBlackTree
                 //  release markers on local area
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
                 var localAreaTopNode = (localArea[1].Parent == localArea[2]) ? localArea[2] : localArea[1];
-                while(!GetFlagsForMarkers(localAreaTopNode, pid, intentionMarkers, null));
+                while(true)
+                {
+                    if(GetFlagsForMarkers(localAreaTopNode, pid, intentionMarkers, null))
+                    {
+                        break;
+                    }
+                }
                 foreach(var node in intentionMarkers)
                 {
                     node.Marker = Guid.Empty;
@@ -504,7 +515,14 @@ namespace ConcurrentRedBlackTree
                     && localArea[4].Marker == localArea[2].Marker
                     && localArea[1].Marker == localArea[2].Marker)
                 {
-                    while(!localArea[2].Parent.OccupyNodeAtomically());
+                    Console.WriteLine("FixUpCase4: This should not happen!");
+                    while(true)
+                    {
+                        if(localArea[2].Parent.OccupyNodeAtomically())
+                        {
+                            break;
+                        }
+                    }
                     localArea[2].Parent.Marker =  localArea[2].Marker;
                     localArea[2].Parent.FreeNodeAtomically();
                 }
@@ -735,7 +753,7 @@ namespace ConcurrentRedBlackTree
                                     node?.FreeNodeAtomically();
                                 }
                             }
-                            moveUpStructDict.Remove(pid);
+                            moveUpStructDict.TryRemove(pid, out var _);
                         }                     
                     }
                 }
@@ -897,7 +915,13 @@ namespace ConcurrentRedBlackTree
             // Now correct local area and intention markers for the given process
             // release highest held intention marker (fifth intention marker)
             var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
-            while(!GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null));
+            while(true)
+            {
+                if(GetFlagsForMarkers(localArea[2], pid, intentionMarkers, null))
+                {
+                    break;
+                }
+            }
             intentionMarkers[3].Marker  = Guid.Empty;
             ReleaseFlags(pid, false, intentionMarkers.ToList());
 
@@ -913,11 +937,23 @@ namespace ConcurrentRedBlackTree
 
             if (!IsIn(newwl, pid))
             {
-                while(!newwl.OccupyNodeAtomically());
+                while(true)
+                {
+                    if(newwl.OccupyNodeAtomically())
+                    {
+                        break;
+                    }
+                }
             }
             if (!IsIn(newwr, pid))
             {
-                while(!newwr.OccupyNodeAtomically());
+                while(true)
+                {
+                    if(newwr.OccupyNodeAtomically())
+                    {
+                        break;
+                    }
+                }
             } 
 
             localArea[2] = neww;
@@ -951,25 +987,49 @@ namespace ConcurrentRedBlackTree
 
             // Extend intention markers (getting flags to set them) by one more
             // Also convert marker on oldgp to a flag i.e. set localArea[1] to oldgp
-            while(!GetFlagsAndMarkersAbove(oldp, localArea, pid, 1));
+            while(true)
+            {
+                if(GetFlagsAndMarkersAbove(oldp, localArea, pid, 1))
+                {
+                    break;
+                }
+            }
 
             // get flags on rest of the new local area (w, wlc, wrc)
             var newp = newx.Parent;
             var neww = newx == newp.Left ? newp.Right : newp.Left;
             if (!IsIn(neww, pid))
             {
-                while(!neww.OccupyNodeAtomically());
+                while(true)
+                {
+                    if(neww.OccupyNodeAtomically())
+                    {
+                        break;
+                    }
+                }
             } 
 
             var newwlc = neww.Left;
             var newwrc = neww.Right;
             if (!IsIn(newwlc, pid))
             {
-                while(!newwlc.OccupyNodeAtomically());
+                while(true)
+                {
+                    if(newwlc.OccupyNodeAtomically())
+                    {
+                        break;
+                    }
+                }
             } 
             if (!IsIn(newwrc, pid))
             {
-                while(!newwrc.OccupyNodeAtomically());
+                while(true)
+                {
+                    if(newwrc.OccupyNodeAtomically())
+                    {
+                        break;
+                    }
+                }
             } 
 
             localArea[2] = neww;
@@ -1003,7 +1063,13 @@ namespace ConcurrentRedBlackTree
 
             if (!IsIn(newSiblingNewChild, pid))
             {
-                while(!newSiblingNewChild.OccupyNodeAtomically());
+                while(true)
+                {
+                    if(newSiblingNewChild.OccupyNodeAtomically())
+                    {
+                        break;
+                    }
+                }
             }
 
             //  correct relocated intention markers for other processes
@@ -1079,7 +1145,13 @@ namespace ConcurrentRedBlackTree
             {
                 // Let pid release their markers ??????????? or pass their markers as well?????
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
-                while(!GetFlagsForMarkers(w.Parent, pid, intentionMarkers, null));
+                while(true)
+                {
+                    if(GetFlagsForMarkers(w.Parent, pid, intentionMarkers, null))
+                    {
+                        break;
+                    }
+                }
                 foreach(var node in intentionMarkers)
                 {
                     node.Marker = Guid.Empty;
@@ -1104,29 +1176,14 @@ namespace ConcurrentRedBlackTree
 
                 if (moveUpStructDict.ContainsKey(pid))
                 {
-                    inheritedMoveUpStructs = GetMoveUpStructWithLock(pid);
+                    inheritedMoveUpStructs = moveUpStructDict[pid];
                 }
                 inheritedMoveUpStructs.Add(newMoveUpStruct);
 
-                moveUpStructDict[wChild_p1.Marker] = inheritedMoveUpStructs;
+                moveUpStructDict.TryAdd(wChild_p1.Marker, inheritedMoveUpStructs);
+                
             }
             return false;
-        }
-
-        private void UpdateMoveUpStructWithLock(Guid pid, MoveUpStruct<TKey, TValue> moveUpStruct)
-        {
-            lock (locks[pid])
-            {
-                moveUpStructDict[pid].Add(moveUpStruct);
-            }
-        }
-
-        private List<MoveUpStruct<TKey, TValue>> GetMoveUpStructWithLock(Guid pid)
-        {
-            lock (locks[pid])
-            {
-                return moveUpStructDict[pid];
-            }
         }
     }
 }
