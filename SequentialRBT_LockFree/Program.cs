@@ -32,7 +32,7 @@ namespace SequentialRBTree
 
             //SearchTest(rbTree, searchOperations, nodesMaxKeyValue);
 
-            DeleteTest(rbTree, totalNodesToDelete, nodesMaxKeyValue, keys);
+            DeleteTest(rbTree, totalNodesToDelete, keys);
         }
 
         public static HashSet<long> InsertTest(SequentialRBTree<long, Data> rbTree, int totalNodesToInsert, int nodesMaxKeyValue)
@@ -114,7 +114,7 @@ namespace SequentialRBTree
             Console.WriteLine();
         }
 
-        public static void DeleteTest(SequentialRBTree<long, Data> rbTree, int totalNodesToDelete, int nodesMaxKeyValue, HashSet<long> keys)
+        public static void DeleteTest(SequentialRBTree<long, Data> rbTree, int totalNodesToDelete, HashSet<long> keys)
         {
             Console.WriteLine("************* Delete Test ***************");
             Console.WriteLine();
