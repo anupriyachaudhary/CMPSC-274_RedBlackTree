@@ -22,8 +22,8 @@ namespace ConcurrentRedBlackTree
             // const long nodesMaxKeyValue = 10000000;
 
             // Variables for delete
-            const int numOfThreads = 1;
-            const int nodesPerThread = 20;
+            const int numOfThreads = 10;
+            const int nodesPerThread = 10000;
             const int totalNodesToDelete = numOfThreads * nodesPerThread;
             const long totalNodesToInsert = totalNodesToDelete * 4;
             const long nodesMaxKeyValue = totalNodesToInsert * 10;
@@ -58,11 +58,7 @@ namespace ConcurrentRedBlackTree
             // generate valid deletable items
             var rand = new Random();
             var randomKeys = keys.OrderBy(x => rand.Next()).Take(totalNodesToDelete);
-            //List<long> keysToDelete = randomKeys.ToList();
-            List<long> keysToDelete = new List<long>(){45, 348, 294, 287, 280, 570, 107, 679, 105, 332, 180, 708, 194, 389, 213, 234, 363, 539, 262, 63};
-
-            var set = string.Join(", ", keysToDelete);
-            Console.WriteLine(set);
+            List<long> keysToDelete = randomKeys.ToList();
 
             var threads = new Thread[numOfThreads];
 
@@ -75,7 +71,7 @@ namespace ConcurrentRedBlackTree
                     var end = start + nodesPerThread - 1;
                     for (var j = start; j <= end; j++)
                     {
-                        Console.WriteLine($"Key = {keysToDelete[j]} is {rbTree.Remove(keysToDelete[j])}");
+                        //Console.WriteLine($"Key = {keysToDelete[j]} is {rbTree.Remove(keysToDelete[j])}");
                         rbTree.Remove(keysToDelete[j]);
                     }
                 });
@@ -120,25 +116,22 @@ namespace ConcurrentRedBlackTree
         {
             var rand = new Random();
 
-            var keys = new HashSet<long>(){470, 539, 634, 467, 571, 113, 375, 207, 180, 213, 52, 343, 744, 27, 503, 43, 596, 121, 175, 234, 780, 363, 63, 582, 443, 122, 391, 611, 728, 115, 7, 348, 304, 262, 742, 289, 240, 308, 570, 401, 332, 292, 184, 389, 473, 287, 515, 403, 708, 294, 18, 139, 107, 476, 25, 450, 523, 564, 280, 66, 622, 45, 796, 440, 565, 562, 554, 356, 614, 406, 633, 448, 72, 679, 194, 770, 1, 105, 97, 326};
+            var keys = new HashSet<long>();
 
-            // for (var i = 0; i < totalNodesToInsert; i++)
-            // {
-            //     long value;
-            //     while (true)
-            //     {
-            //         value = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
-            //         if (!keys.Contains(value))
-            //         {
-            //             break;
-            //         }
-            //     }
+            for (var i = 0; i < totalNodesToInsert; i++)
+            {
+                long value;
+                while (true)
+                {
+                    value = 1 + (long) (rand.NextDouble() * nodesMaxKeyValue);
+                    if (!keys.Contains(value))
+                    {
+                        break;
+                    }
+                }
 
-            //     keys.Add(value);
-            // }
-
-            var set = string.Join(", ", keys);
-            Console.WriteLine(set);
+                keys.Add(value);
+            }
 
             var values = keys.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
 
