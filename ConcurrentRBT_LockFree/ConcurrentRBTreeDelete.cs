@@ -19,7 +19,6 @@ namespace ConcurrentRedBlackTree
             Guid pid = Guid.NewGuid();
             try
             {
-                Console.WriteLine($"Deletion of key = {key} started!");
                 return Delete(key, pid);
             }
             catch (Exception)

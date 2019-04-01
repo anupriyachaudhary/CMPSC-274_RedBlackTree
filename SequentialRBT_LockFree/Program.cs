@@ -16,10 +16,10 @@ namespace SequentialRBTree
         static void Main(string[] args)
         {
             // read command line parameters
-            const int totalNodesToInsert = 12000000;
-            const int nodesMaxKeyValue = 100000000;
-            const int searchOperations = 1000000;
-            const int deleteOperations = 10000;
+            const int totalNodesToDelete = 100000;
+            const int totalNodesToInsert = totalNodesToDelete * 4;
+            const int nodesMaxKeyValue = totalNodesToInsert * 10;
+            //const int searchOperations = 1000000;
 
             var rbTree = new SequentialRBTree<long, Data>();
 
@@ -32,7 +32,7 @@ namespace SequentialRBTree
 
             //SearchTest(rbTree, searchOperations, nodesMaxKeyValue);
 
-            //DeleteTest(rbTree, deleteOperations, nodesMaxKeyValue);
+            DeleteTest(rbTree, totalNodesToDelete, nodesMaxKeyValue);
         }
 
         public static void InsertTest(SequentialRBTree<long, Data> rbTree, int totalNodesToInsert, int nodesMaxKeyValue)

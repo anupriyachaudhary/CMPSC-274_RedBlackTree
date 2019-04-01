@@ -274,55 +274,40 @@ namespace SequentialRBTree
 
         private void Delete(RedBlackNode<TKey, TValue> deleteNode)
         {
-            // A node to be deleted will be: 
-            //		1. a leaf with no children
-            //		2. have one child
-            //		3. have two children
-            // If the deleted node is red, the red black properties still hold.
-            // If the deleted node is black, the tree needs rebalancing
-
-            // work node
             RedBlackNode<TKey, TValue> workNode;
 
-            // find the replacement node (the successor to x) - the node one with 
-            // at *most* one child. 
             if (deleteNode.Left.IsSentinel || deleteNode.Right.IsSentinel)
-                // node has sentinel as a child
+            {
                 workNode = deleteNode;
+            }
             else
             {
-                // z has two children, find replacement node which will 
-                // be the leftmost node greater than z
-                // traverse right subtree
                 workNode = deleteNode.Right;
-                // to find next node in sequence
                 while (!workNode.Left.IsSentinel)
+                {
                     workNode = workNode.Left;
+                }
             }
 
-            // at this point, y contains the replacement node. it's content will be copied 
-            // to the valules in the node to be deleted
+            RedBlackNode<TKey, TValue> linkedNode = !workNode.Left.IsSentinel ? workNode.Left : workNode.Right;
 
-            // x (y's only child) is the node that will be linked to y's old parent. 
-            RedBlackNode<TKey, TValue> linkedNode = !workNode.Left.IsSentinel
-                                                 ? workNode.Left
-                                                 : workNode.Right;
-
-            // replace x's parent with y's parent and
-            // link x to proper subtree in parent
-            // this removes y from the chain
             linkedNode.Parent = workNode.Parent;
             if (workNode.Parent != null)
+            {
                 if (workNode == workNode.Parent.Left)
+                {
                     workNode.Parent.Left = linkedNode;
+                }
                 else
+                {
                     workNode.Parent.Right = linkedNode;
+                }
+            }
             else
-                // make x the root node
+            {
                 _root = linkedNode;
+            }
 
-            // copy the values from y (the replacement node) to the node being deleted.
-            // note: this effectively deletes the node. 
             if (workNode != deleteNode)
             {
                 deleteNode.Key = workNode.Key;
@@ -330,23 +315,21 @@ namespace SequentialRBTree
             }
 
             if (workNode.Color == RedBlackNodeType.Black)
+            {
                 BalanceTreeAfterDelete(linkedNode);
+            }
         }
 
         private void BalanceTreeAfterDelete(RedBlackNode<TKey, TValue> linkedNode)
         {
-            // maintain Red-Black tree balance after deleting node
             while (linkedNode != _root && linkedNode.Color == RedBlackNodeType.Black)
             {
                 RedBlackNode<TKey, TValue> workNode;
-                // determine sub tree from parent
                 if (linkedNode == linkedNode.Parent.Left)
                 {
-                    // y is x's sibling
                     workNode = linkedNode.Parent.Right;
                     if (workNode.Color == RedBlackNodeType.Red)
                     {
-                        // x is black, y is red - make both black and rotate
                         linkedNode.Parent.Color = RedBlackNodeType.Red;
                         workNode.Color = RedBlackNodeType.Black;
                         RotateLeft(linkedNode.Parent);
@@ -355,10 +338,7 @@ namespace SequentialRBTree
                     if (workNode.Left.Color == RedBlackNodeType.Black &&
                         workNode.Right.Color == RedBlackNodeType.Black)
                     {
-                        // children are both black
-                        // change parent to red
                         workNode.Color = RedBlackNodeType.Red;
-                        // move up the tree
                         linkedNode = linkedNode.Parent;
                     }
                     else
@@ -370,8 +350,8 @@ namespace SequentialRBTree
                             RotateRight(workNode);
                             workNode = linkedNode.Parent.Right;
                         }
-                        linkedNode.Parent.Color = RedBlackNodeType.Black;
                         workNode.Color = linkedNode.Parent.Color;
+                        linkedNode.Parent.Color = RedBlackNodeType.Black;
                         workNode.Right.Color = RedBlackNodeType.Black;
                         RotateLeft(linkedNode.Parent);
                         linkedNode = _root;
