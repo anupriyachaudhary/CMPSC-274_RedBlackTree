@@ -863,7 +863,7 @@ namespace ConcurrentRedBlackTree
             }
 
             Guid PIDtoIgnore;
-            bool IsTooCloseProcess = getPIDtoIgnore(pid, PIDtoIgnore);
+            bool IsTooCloseProcess = getPIDtoIgnore(pid, out PIDtoIgnore);
             if (ts.Marker != Guid.Empty && (!IsTooCloseProcess || ts.Marker != PIDtoIgnore))
             {
                 isMarkerAllowed = false;
@@ -880,8 +880,9 @@ namespace ConcurrentRedBlackTree
             return isMarkerAllowed;
         }
 
-        private bool getPIDtoIgnore(Guid pid, Guid PIDtoIgnore)
+        private bool getPIDtoIgnore(Guid pid, out Guid PIDtoIgnore)
         {
+            PIDtoIgnore = Guid.Empty;
             if (moveUpStructDict.ContainsKey(pid))
             {
                 var moveUpStructList = moveUpStructDict[pid];
@@ -1142,6 +1143,7 @@ namespace ConcurrentRedBlackTree
 
             if(case1 || case2 || case3)
             {
+                Console.WriteLine("case1 || case2 || case3");
                 // Let pid release their markers ??????????? or pass their markers as well?????
                 var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
                 while(true)
