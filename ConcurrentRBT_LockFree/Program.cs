@@ -84,10 +84,7 @@ namespace ConcurrentRedBlackTree
                     break;
                 }
             }
-
-            Console.WriteLine("DeleteItems Success!");
-
-            var keysToDelete = deleteItems.ToList();
+            var keysToDelete = deleteItems.ToArray();
 
             var threads = new Thread[numOfThreads];
 
@@ -100,8 +97,8 @@ namespace ConcurrentRedBlackTree
                     var end = start + nodesPerThread - 1;
                     for (var j = start; j <= end; j++)
                     {
-                        Console.WriteLine($"Key = {keysToDelete[j]} is {rbTree.Remove(keysToDelete[j])}");
-                        //rbTree.Remove(keysToDelete[j]);
+                        //Console.WriteLine($"Key = {keysToDelete[j]} is {rbTree.Remove(keysToDelete[j])}");
+                        rbTree.Remove(keysToDelete[j]);
                     }
                 });
                 threads[i].Name = i.ToString();
