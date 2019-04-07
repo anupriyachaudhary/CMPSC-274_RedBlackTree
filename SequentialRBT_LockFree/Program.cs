@@ -16,7 +16,7 @@ namespace SequentialRBTree
         static void Main(string[] args)
         {
             // read command line parameters
-            const int totalNodesToDelete = 100000;
+            const int totalNodesToDelete = 64 * 10000;
             const int totalNodesToInsert = totalNodesToDelete * 4;
             const int nodesMaxKeyValue = totalNodesToInsert * 10;
             //const int searchOperations = 1000000;
@@ -28,14 +28,14 @@ namespace SequentialRBTree
             Console.WriteLine();
             Console.WriteLine();
 
-            HashSet<long> keys = InsertTest(rbTree, totalNodesToInsert, nodesMaxKeyValue);
+            InsertTest(rbTree, totalNodesToInsert, nodesMaxKeyValue);
 
             //SearchTest(rbTree, searchOperations, nodesMaxKeyValue);
 
-            DeleteTest(rbTree, totalNodesToDelete, keys);
+            DeleteTest(rbTree, totalNodesToDelete, nodesMaxKeyValue);
         }
 
-        public static HashSet<long> InsertTest(SequentialRBTree<long, Data> rbTree, int totalNodesToInsert, int nodesMaxKeyValue)
+        public static void InsertTest(SequentialRBTree<long, Data> rbTree, int totalNodesToInsert, int nodesMaxKeyValue)
         {
             // generate input data
             var rand = new Random();
@@ -84,7 +84,7 @@ namespace SequentialRBTree
             Console.WriteLine();
             Console.WriteLine();
 
-            return keys;
+            return;
         }
 
         public static void SearchTest(SequentialRBTree<long, Data> rbTree, int searchOperations, int nodesMaxKeyValue)
@@ -114,7 +114,7 @@ namespace SequentialRBTree
             Console.WriteLine();
         }
 
-        public static void DeleteTest(SequentialRBTree<long, Data> rbTree, int totalNodesToDelete, HashSet<long> keys)
+        public static void DeleteTest(SequentialRBTree<long, Data> rbTree, int totalNodesToDelete, int nodesMaxKeyValue)
         {
             Console.WriteLine("************* Delete Test ***************");
             Console.WriteLine();
@@ -123,15 +123,40 @@ namespace SequentialRBTree
             Console.WriteLine();
 
             // generate valid deletable items
+            var count = 0;
+            var deleteItems = new HashSet<long>();
             var rand = new Random();
-            var randomKeys = keys.OrderBy(x => rand.Next()).Take(totalNodesToDelete);
-            List<long> keysToDelete = randomKeys.ToList();
+
+            while (true)
+            {
+                long target;
+                while (true)
+                {
+                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    if (!deleteItems.Contains(target))
+                    {
+                        break;
+                    }
+                }
+                var data = rbTree.GetData(target);
+
+                if (data != null)
+                {
+                    deleteItems.Add(data.Item1);
+                    count++;
+                }
+
+                if (count == totalNodesToDelete)
+                {
+                    break;
+                }
+            }
 
             // delete test
             var watch = new Stopwatch();
             watch.Start();
 
-            foreach (var key in keysToDelete)
+            foreach (var key in deleteItems)
             {
                 rbTree.Remove(key);
             }

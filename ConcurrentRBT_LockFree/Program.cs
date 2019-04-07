@@ -22,8 +22,8 @@ namespace ConcurrentRedBlackTree
             // const long nodesMaxKeyValue = 10000000;
 
             // Variables for delete
-            const int numOfThreads = 10;
-            const int nodesPerThread = 10000;
+            const int numOfThreads = 8;
+            const int nodesPerThread = 80000;
             const int totalNodesToDelete = numOfThreads * nodesPerThread;
             const long totalNodesToInsert = totalNodesToDelete * 4;
             const long nodesMaxKeyValue = totalNodesToInsert * 10;
@@ -41,13 +41,13 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
 
             //SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
-            HashSet<long> keys = ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread * 4, totalNodesToInsert, nodesMaxKeyValue);
-            ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, keys);
+            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread * 4, totalNodesToInsert, nodesMaxKeyValue);
+            ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
             // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
 
         public static void ConcurrentDeleteTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
-            int nodesPerThread, int totalNodesToDelete, HashSet<long> keys)
+            int nodesPerThread, int totalNodesToDelete, long nodesMaxKeyValue)
         {
             Console.WriteLine("************* Delete Test ***************");
             Console.WriteLine();
@@ -55,10 +55,39 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine($"We will perform {totalNodesToDelete} delete operations");
             Console.WriteLine();
 
-            // generate valid deletable items
+             // generate valid deletable items
+            var count = 0;
+            var deleteItems = new HashSet<long>();
             var rand = new Random();
-            var randomKeys = keys.OrderBy(x => rand.Next()).Take(totalNodesToDelete);
-            List<long> keysToDelete = randomKeys.ToList();
+
+            while (true)
+            {
+                long target;
+                while (true)
+                {
+                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    if (!deleteItems.Contains(target))
+                    {
+                        break;
+                    }
+                }
+                var data = rbTree.GetData(target);
+
+                if (data != null)
+                {
+                    deleteItems.Add(data.Item1);
+                    count++;
+                }
+
+                if (count == totalNodesToDelete)
+                {
+                    break;
+                }
+            }
+
+            Console.WriteLine("DeleteItems Success!");
+
+            var keysToDelete = deleteItems.ToList();
 
             var threads = new Thread[numOfThreads];
 
@@ -71,8 +100,8 @@ namespace ConcurrentRedBlackTree
                     var end = start + nodesPerThread - 1;
                     for (var j = start; j <= end; j++)
                     {
-                        //Console.WriteLine($"Key = {keysToDelete[j]} is {rbTree.Remove(keysToDelete[j])}");
-                        rbTree.Remove(keysToDelete[j]);
+                        Console.WriteLine($"Key = {keysToDelete[j]} is {rbTree.Remove(keysToDelete[j])}");
+                        //rbTree.Remove(keysToDelete[j]);
                     }
                 });
                 threads[i].Name = i.ToString();
@@ -111,7 +140,7 @@ namespace ConcurrentRedBlackTree
         }
 
         
-        public static HashSet<long> ConcurrentInsertTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
+        public static void ConcurrentInsertTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
             long nodesPerThread, long totalNodesToInsert, long nodesMaxKeyValue)
         {
             var rand = new Random();
@@ -186,7 +215,7 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
             Console.WriteLine();
 
-            return keys;
+            return;
         }
 
         public static void ConcurrentInsert(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
@@ -326,3 +355,6 @@ namespace ConcurrentRedBlackTree
         }
     }
 }
+
+// var randomKeys = keys.OrderBy(x => rand.Next()).Take(totalNodesToDelete);
+// List<long> keysToDelete = randomKeys.ToList();

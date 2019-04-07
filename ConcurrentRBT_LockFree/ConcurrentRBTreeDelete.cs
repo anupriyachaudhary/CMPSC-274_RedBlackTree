@@ -96,12 +96,12 @@ namespace ConcurrentRedBlackTree
                     //return false;
                 }
                 // check if correct node is locked
-                if(z.Marker != Guid.Empty)
-                {
-                    z.FreeNodeAtomically();
-                    continue;
-                    //return false;
-                }
+                // if(z.Marker != Guid.Empty)
+                // {
+                //     z.FreeNodeAtomically();
+                //     continue;
+                //     //return false;
+                // }
 
                 // Find key-order successor, locked y is returned
                 y = FindSuccessor(z);               
