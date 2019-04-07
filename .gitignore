@@ -5,3 +5,12 @@ bin/
 
 .idea/
 *.sln.DS_Store
+SequentialRBT_LockFree/.vs/SequentialRBTree/v15/Server/sqlite3/storage.ide-wal
+SequentialRBT_LockFree/.vs/SequentialRBTree/v15/Server/sqlite3/storage.ide
+SequentialRBT_LockFree/.vs/SequentialRBTree/v15/Server/sqlite3/storage.ide-shm
+SequentialRBT_LockFree/.vs/SequentialRBTree/v15/Server/sqlite3/db.lock
+ConcurrentRBT_LockFree/.vs/ConcurrentRedBlackTree/v15/Server/sqlite3/storage.ide-wal
+ConcurrentRBT_LockFree/.vs/ConcurrentRedBlackTree/v15/Server/sqlite3/storage.ide-shm
+ConcurrentRBT_LockFree/.vs/ConcurrentRedBlackTree/v15/Server/sqlite3/db.lock
+ConcurrentRBT_LockFree/.vs/ConcurrentRedBlackTree/v15/.suo
+ConcurrentRBT_LockFree/.vs/ConcurrentRedBlackTree/v15/Server/sqlite3/storage.ide
