@@ -77,7 +77,9 @@ namespace ConcurrentRedBlackTree
             }
 
             treeNode.FreeNodeAtomically();
-            return null;
+            var noNode = new RedBlackNode<TKey, TValue>(default(TKey), default(TValue));
+            noNode.Color = RedBlackNodeType.Empty;
+            return noNode;
         }
 
         private bool Delete(TKey key, Guid pid)
@@ -90,10 +92,14 @@ namespace ConcurrentRedBlackTree
                 // GetNode will return a locked node
                 z = GetNodeForDelete(key);
 
+                if(z.Color == RedBlackNodeType.Empty)
+                {
+                    return false;
+                }
+
                 if(z == null)
                 {
                     continue;
-                    //return false;
                 }
                 // check if correct node is locked
                 // if(z.Marker != Guid.Empty)
