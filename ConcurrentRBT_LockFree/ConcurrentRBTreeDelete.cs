@@ -99,7 +99,7 @@ namespace ConcurrentRedBlackTree
                 y = FindSuccessor(z);               
                 if(y == null)
                 {
-                    Console.WriteLine("No successor");
+                    //Console.WriteLine("No successor");
                     z.FreeNodeAtomically();
                     continue;
                 }
@@ -371,7 +371,32 @@ namespace ConcurrentRedBlackTree
                 }
             }
 
-            if(!GetFlagsAndMarkersAbove(yp, localArea, pid, 0, z))
+            //check if y still a successor of z
+            bool isStillSuccessor = true;
+            RedBlackNode<TKey, TValue> workNode;
+            if(y == z)
+            {
+                if(!z.Left.IsSentinel && !z.Right.IsSentinel)
+                {
+                    isStillSuccessor = false;
+                    Console.WriteLine("Not Still Successor!");
+                }
+            }
+            else
+            {
+                workNode = z.Right;
+                while (!workNode.Left.IsSentinel)
+                {
+                    workNode = workNode.Left;
+                }
+                if(workNode != y)
+                {
+                    isStillSuccessor = false;
+                    Console.WriteLine("Not Still Successor!");
+                }
+            }
+
+            if(!isStillSuccessor || !GetFlagsAndMarkersAbove(yp, localArea, pid, 0, z))
             {
                 x.FreeNodeAtomically();
                 w.FreeNodeAtomically();
