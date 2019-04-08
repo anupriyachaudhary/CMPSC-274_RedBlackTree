@@ -77,9 +77,7 @@ namespace ConcurrentRedBlackTree
             }
 
             treeNode.FreeNodeAtomically();
-            var noNode = new RedBlackNode<TKey, TValue>(default(TKey), default(TValue));
-            noNode.Color = RedBlackNodeType.Empty;
-            return noNode;
+            return null;
         }
 
         private bool Delete(TKey key, Guid pid)
@@ -92,29 +90,18 @@ namespace ConcurrentRedBlackTree
                 // GetNode will return a locked node
                 z = GetNodeForDelete(key);
 
-                if(z.Color == RedBlackNodeType.Empty)
-                {
-                    return false;
-                }
-
                 if(z == null)
                 {
                     continue;
                 }
-                // check if correct node is locked
-                // if(z.Marker != Guid.Empty)
-                // {
-                //     z.FreeNodeAtomically();
-                //     continue;
-                //     //return false;
-                // }
 
                 // Find key-order successor, locked y is returned
                 y = FindSuccessor(z);               
                 if(y == null)
                 {
+                    Console.WriteLine("No successor");
+                    z.FreeNodeAtomically();
                     continue;
-                    //return false;
                 }
                 //we  now hold a flag on y and z
 
@@ -133,7 +120,7 @@ namespace ConcurrentRedBlackTree
                 }      
             }
 
-            x = y.Left.IsSentinel ? y.Right  : y.Left;
+            x = y.Left.IsSentinel ? y.Right : y.Left;
 
             // unlink y from the tree
             x.Parent = y.Parent;
@@ -1194,3 +1181,12 @@ namespace ConcurrentRedBlackTree
         }
     }
 }
+
+
+// check if correct node is locked
+// if(z.Marker != Guid.Empty)
+// {
+//     z.FreeNodeAtomically();
+//     continue;
+//     //return false;
+// }

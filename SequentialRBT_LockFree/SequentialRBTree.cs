@@ -23,7 +23,7 @@ namespace SequentialRBTree
         {
             try
             {
-                Delete(GetNode(key));
+                Delete(key);
                 return true;
             }
             catch (Exception)
@@ -272,8 +272,15 @@ namespace SequentialRBTree
             }
         }
 
-        private void Delete(RedBlackNode<TKey, TValue> deleteNode)
+        private bool Delete(TKey key)
         {
+            var deleteNode = GetNode(key);
+
+            if (deleteNode == null)
+            {
+                return false;
+            }
+
             RedBlackNode<TKey, TValue> workNode;
 
             if (deleteNode.Left.IsSentinel || deleteNode.Right.IsSentinel)
@@ -318,6 +325,8 @@ namespace SequentialRBTree
             {
                 BalanceTreeAfterDelete(linkedNode);
             }
+
+            return true;
         }
 
         private void BalanceTreeAfterDelete(RedBlackNode<TKey, TValue> linkedNode)

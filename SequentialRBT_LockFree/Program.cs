@@ -158,7 +158,10 @@ namespace SequentialRBTree
 
             foreach (var key in deleteItems)
             {
-                rbTree.Remove(key);
+                if(rbTree.Remove(key) == false)
+                {
+                    Console.WriteLine($"Key = {key} is False");
+                }
             }
 
             watch.Stop();
