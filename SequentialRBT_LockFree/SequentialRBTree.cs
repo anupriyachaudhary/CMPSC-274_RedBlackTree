@@ -402,16 +402,29 @@ namespace SequentialRBTree
             linkedNode.Color = RedBlackNodeType.Black;
         }
         
-        public bool isValidRBT()
+        public bool isValidRBT(TKey nodesMaxKeyValue)
         {
-            return isValidRBT(_root);
+            return isValidRBT(_root, default(TKey), nodesMaxKeyValue);
         }
 
-        private bool isValidRBT(RedBlackNode<TKey, TValue> node)
+        private bool isValidRBT(RedBlackNode<TKey, TValue> node, TKey low, TKey high)
         {
-            if(node == null)
+            if(node.IsSentinel)
                 return true;
-            return isValidRBT(node.Left) && isValidRBT(node.Right);
+
+            bool isLow = false;
+            bool isHigh = false;
+            if(node.Key.CompareTo(low) > 0)
+            {
+                isLow = true;
+            }
+            if(node.Key.CompareTo(high) < 0)
+            {
+                isHigh = true;
+            }
+            return isLow && isHigh
+                    && isValidRBT(node.Left, low, node.Key) 
+                    && isValidRBT(node.Right, node.Key, high);
         }
     }
 }

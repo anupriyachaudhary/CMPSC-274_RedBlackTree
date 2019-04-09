@@ -99,9 +99,13 @@ namespace ConcurrentRedBlackTree
                     {
                         //Console.WriteLine($"Key = {keysToDelete[j]} is {rbTree.Remove(keysToDelete[j])}");
                         rbTree.Remove(keysToDelete[j]);
-                        if (rbTree.isValidRBT() == false)
+                        if (j%1000 == 1)
                         {
-                            Console.WriteLine($"After deleting Key = {keysToDelete[j]}, RBT is invalid");
+                            Console.WriteLine($"Thread{i}: Checking validity at node no. {j-start}");
+                            if (rbTree.isValidRBT(nodesMaxKeyValue) == false)
+                            {
+                                Console.WriteLine($"After deleting Key = {keysToDelete[j]}, RBT is invalid");
+                            }
                         }
                     }
                 });
