@@ -535,5 +535,17 @@ namespace ConcurrentRedBlackTree
                 rotateNode.Parent = workNode;
             }
         }
+    
+        public bool isValidRBT()
+        {
+            return isValidRBT(_root);
+        }
+
+        private bool isValidRBT(RedBlackNode<TKey, TValue> node)
+        {
+            if(node == null)
+                return true;
+            return isValidRBT(node.Left) && isValidRBT(node.Right);
+        }
     }
 }

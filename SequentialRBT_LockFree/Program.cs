@@ -16,7 +16,7 @@ namespace SequentialRBTree
         static void Main(string[] args)
         {
             // read command line parameters
-            const int totalNodesToDelete = 64 * 10000;
+            const int totalNodesToDelete = 64 * 100;
             const int totalNodesToInsert = totalNodesToDelete * 4;
             const int nodesMaxKeyValue = totalNodesToInsert * 10;
             //const int searchOperations = 1000000;
@@ -158,9 +158,10 @@ namespace SequentialRBTree
 
             foreach (var key in deleteItems)
             {
-                if(rbTree.Remove(key) == false)
+                rbTree.Remove(key);
+                if (rbTree.isValidRBT() == false)
                 {
-                    Console.WriteLine($"Key = {key} is False");
+                    Console.WriteLine($"After deleting Key = {key}, RBT is invalid");
                 }
             }
 
