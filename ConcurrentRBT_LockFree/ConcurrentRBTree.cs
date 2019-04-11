@@ -26,7 +26,7 @@ namespace ConcurrentRedBlackTree
             }
         }
 
-        private RedBlackNode<TKey, TValue> GetNode(TKey key)
+        public RedBlackNode<TKey, TValue> GetNode(TKey key)
         {
             // begin at root
             RedBlackNode<TKey, TValue> treeNode = _root;
@@ -154,25 +154,36 @@ namespace ConcurrentRedBlackTree
         {
             while (true)
             {
-                RedBlackNode<TKey, TValue> workNode = _root;
+                if(_root == null)
+                {
+                    newNode.OccupyNodeAtomically();
+                    if(!_dummy.OccupyNodeAtomically())
+                    {
+                        newNode.FreeNodeAtomically();
+                        continue;
+                    }
+                    if(!_dummy.Left.IsSentinel)
+                    {
+                        newNode.FreeNodeAtomically();
+                        _dummy.FreeNodeAtomically();
+                        continue;
+                    }
+                    // first node added
+                    newNode.Parent = _dummy;
+                    _dummy.Left = newNode;
+                    _root = newNode;
+                    break;
+                }
 
+                RedBlackNode<TKey, TValue> workNode = _root, nextNode = _root;
                 var isLocalAreaOccupied = false;
-                var isLeft = false;
-
                 while (true)
                 {
-                    if(workNode == null)
+                    if(!workNode.OccupyNodeAtomically())
                     {
-                        isLocalAreaOccupied = OccupyLocalAreaForInsert(newNode, isLeft);
-                        break;
-                    }
-                    if (workNode.IsSentinel)
-                    {
-                        isLocalAreaOccupied = OccupyLocalAreaForInsert(newNode, isLeft);
                         break;
                     }
 
-                    // find Parent
                     newNode.Parent = workNode;
                     int result = newNode.Key.CompareTo(workNode.Key);
                     if (result == 0)
@@ -182,17 +193,37 @@ namespace ConcurrentRedBlackTree
 
                     if (result > 0)
                     {
-                        isLeft = false;
-                        workNode = workNode.Right;
+                        nextNode = workNode.Right;
                     }
                     else
                     {
-                        isLeft = true;
-                        workNode = workNode.Left;
+                        nextNode = workNode.Left;
                     }
+
+                    if(nextNode.IsSentinel)
+                    {
+                        isLocalAreaOccupied = OccupyLocalAreaForInsert(newNode);
+                        break;
+                    }
+
+                    if(!nextNode.OccupyNodeAtomically())
+                    {
+                        workNode.FreeNodeAtomically();
+                        break;
+                    }
+
+                    if (nextNode.Parent != workNode)
+                    {
+                        workNode.FreeNodeAtomically();
+                        nextNode.FreeNodeAtomically();
+                        break;
+                    }
+
+                    workNode.FreeNodeAtomically();
+                    workNode = nextNode;
                 }
 
-                if (isLocalAreaOccupied)
+                if(isLocalAreaOccupied)
                 {
                     break;
                 }
@@ -202,50 +233,21 @@ namespace ConcurrentRedBlackTree
             if (newNode.Parent != null)
             {
                 if (newNode.Key.CompareTo(newNode.Parent.Key) > 0)
+                {
                     newNode.Parent.Right = newNode;
+                }
                 else
+                {
                     newNode.Parent.Left = newNode;
-            }
-            else
-            {
-                // first node added
-                newNode.Parent = _dummy;
-                _dummy.Left = newNode;
-                _root = newNode;
+                }
             }
         }
 
-        private bool OccupyLocalAreaForInsert(RedBlackNode<TKey, TValue> node, bool isLeft)
+        private bool OccupyLocalAreaForInsert(RedBlackNode<TKey, TValue> node)
         {
             // occupy the node to be inserted
             if (!node.OccupyNodeAtomically())
             {
-                return false;
-            }
-
-            // If first node insert
-            if(_root == null)
-            {
-                if(!_dummy.OccupyNodeAtomically())
-                {
-                    node.FreeNodeAtomically();
-                    return false;
-                }
-                return true;
-            }
-
-            // occupy parent node atomically
-            if (node.Parent == null || !node.Parent.OccupyNodeAtomically())
-            {
-                node.FreeNodeAtomically();
-                return false;
-            }
-
-            // check if parent still pointing to sentinel node
-            if ((isLeft && !node.Parent.Left.IsSentinel) || (!isLeft && !node.Parent.Right.IsSentinel))
-            {
-                node.FreeNodeAtomically();
-                node.Parent.FreeNodeAtomically();
                 return false;
             }
 
@@ -565,11 +567,11 @@ namespace ConcurrentRedBlackTree
                     && isValidRBT(node.Right, node.Key, high);
         }
 
-        public void printGivenLevel()
+        public void printLevelOrder()
         {
-            int h = MaxDepth(); 
+            int height = MaxDepth();
             int i; 
-            for (i=1; i <= h; i++) 
+            for (i=1; i <= height; i++) 
             { 
                 printGivenLevel(_root, i); 
                 Console.WriteLine("\n"); 
@@ -578,8 +580,11 @@ namespace ConcurrentRedBlackTree
 
         private void printGivenLevel(RedBlackNode<TKey, TValue> node, int level) 
         { 
-            if (node.IsSentinel) 
-                return; 
+            if (node.IsSentinel)
+            {
+                Console.Write("null ");
+                return;
+            }
             if (level == 1) 
                 Console.Write($"{node.Key} "); 
             else if (level > 1) 
