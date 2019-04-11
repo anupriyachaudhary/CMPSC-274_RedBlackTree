@@ -178,7 +178,7 @@ namespace ConcurrentRedBlackTree
                 RedBlackNode<TKey, TValue> workNode = _root, nextNode = _root;
                 if(!workNode.OccupyNodeAtomically())
                 {
-                    break;
+                    continue;
                 }
                 var isLocalAreaOccupied = false;
 
@@ -230,7 +230,7 @@ namespace ConcurrentRedBlackTree
             }
 
             // insert node into tree starting at parent's location
-            if (newNode.Parent != null)
+            if (newNode != _root)
             {
                 if (newNode.Key.CompareTo(newNode.Parent.Key) > 0)
                 {
@@ -248,6 +248,7 @@ namespace ConcurrentRedBlackTree
             // occupy the node to be inserted
             if (!node.OccupyNodeAtomically())
             {
+                node.Parent.FreeNodeAtomically();
                 return false;
             }
 
