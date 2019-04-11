@@ -556,9 +556,37 @@ namespace ConcurrentRedBlackTree
             {
                 isHigh = true;
             }
+            if(isLow == false || isHigh == false)
+            {
+                Console.WriteLine($"RBT is invalid at {node.Key}");
+            }
             return isLow && isHigh
                     && isValidRBT(node.Left, low, node.Key) 
                     && isValidRBT(node.Right, node.Key, high);
+        }
+
+        public void printGivenLevel()
+        {
+            int h = MaxDepth(); 
+            int i; 
+            for (i=1; i <= h; i++) 
+            { 
+                printGivenLevel(_root, i); 
+                Console.WriteLine("\n"); 
+            }
+        }
+
+        private void printGivenLevel(RedBlackNode<TKey, TValue> node, int level) 
+        { 
+            if (node.IsSentinel) 
+                return; 
+            if (level == 1) 
+                Console.Write($"{node.Key} "); 
+            else if (level > 1) 
+            { 
+                printGivenLevel(node.Left, level-1); 
+                printGivenLevel(node.Right, level-1); 
+            } 
         }
     }
 }
