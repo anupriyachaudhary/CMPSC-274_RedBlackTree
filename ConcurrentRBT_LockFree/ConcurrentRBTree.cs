@@ -124,6 +124,7 @@ namespace ConcurrentRedBlackTree
                 _dummy.Left.FreeNodeAtomically();
                 return;
             }
+
             var localArea = new RedBlackNode<TKey, TValue>[4];
             localArea[0] = newNode;
             localArea[1] = newNode.Parent;
@@ -133,7 +134,6 @@ namespace ConcurrentRedBlackTree
                 localArea[2] = newNode.Parent.Parent;
             }
             
-
             if (newNode.Parent != _dummy && newNode.Parent.Parent != _dummy)
             {
                 localArea[3] = newNode.Parent.Parent.Left == newNode.Parent
@@ -176,14 +176,14 @@ namespace ConcurrentRedBlackTree
                 }
 
                 RedBlackNode<TKey, TValue> workNode = _root, nextNode = _root;
+                if(!workNode.OccupyNodeAtomically())
+                {
+                    break;
+                }
                 var isLocalAreaOccupied = false;
+
                 while (true)
                 {
-                    if(!workNode.OccupyNodeAtomically())
-                    {
-                        break;
-                    }
-
                     newNode.Parent = workNode;
                     int result = newNode.Key.CompareTo(workNode.Key);
                     if (result == 0)
