@@ -425,15 +425,16 @@ namespace ConcurrentRedBlackTree
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
                         insertedNode.Parent.Parent.Color = RedBlackNodeType.Red;
 
-                        var gp = insertedNode.Parent.Parent.Parent;
+                        RedBlackNode<TKey, TValue> gp = null;
                         while(true)
                         {
+                            gp = insertedNode.Parent.Parent.Parent;
                             if(!gp.OccupyNodeAtomically())
                             {
                                 continue;
                             }
 
-                            if(insertedNode.Parent.Parent != gp)
+                            if(insertedNode.Parent.Parent.Parent != gp)
                             {
                                 gp.FreeNodeAtomically();
                                 continue;
@@ -469,15 +470,16 @@ namespace ConcurrentRedBlackTree
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
                         insertedNode.Parent.Parent.Color = RedBlackNodeType.Red;
 
-                        var gp = insertedNode.Parent.Parent.Parent;
+                        RedBlackNode<TKey, TValue> gp = null;
                         while(true)
                         {
+                            gp = insertedNode.Parent.Parent.Parent;
                             if(!gp.OccupyNodeAtomically())
                             {
                                 continue;
                             }
 
-                            if(insertedNode.Parent.Parent != gp)
+                            if(insertedNode.Parent.Parent.Parent != gp)
                             {
                                 gp.FreeNodeAtomically();
                                 continue;

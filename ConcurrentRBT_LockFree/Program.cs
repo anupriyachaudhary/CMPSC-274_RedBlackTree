@@ -22,8 +22,8 @@ namespace ConcurrentRedBlackTree
             // const long nodesMaxKeyValue = 10000000;
 
             // Variables for delete
-            const int numOfThreads = 16;
-            const int nodesPerThread = 100000;
+            const int numOfThreads = 64;
+            const int nodesPerThread = 100;
             const int totalNodesToDelete = numOfThreads * nodesPerThread;
             const long totalNodesToInsert = totalNodesToDelete * 4;
             const long nodesMaxKeyValue = totalNodesToInsert * 10;
@@ -33,7 +33,7 @@ namespace ConcurrentRedBlackTree
             // const int searchOperationsPerThread = 10000;
             // const long nodesMaxKeyValue = 10000000;
 
-            var rbTree = new ConcurrentRBTree<long, Data>();
+            
 
             //start test
             Console.WriteLine("*********** Starting Test **********");
@@ -41,8 +41,12 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
 
             //SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
-            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread * 4, totalNodesToInsert, nodesMaxKeyValue);
-            ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
+            while(true)
+            {
+                var rbTree = new ConcurrentRBTree<long, Data>();
+                ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread * 4, totalNodesToInsert, nodesMaxKeyValue);
+                ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
+            }
             // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
 
@@ -52,6 +56,7 @@ namespace ConcurrentRedBlackTree
             if (rbTree.isValidRBT(nodesMaxKeyValue + 1) == false)
             {
                 Console.WriteLine($"After insertion, RBT is invalid");
+                Debug.Assert(!rbTree.isValidRBT(nodesMaxKeyValue + 1));
             }
 
             //rbTree.printLevelOrder();
