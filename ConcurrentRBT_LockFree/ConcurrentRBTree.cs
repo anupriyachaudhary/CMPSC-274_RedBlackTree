@@ -418,12 +418,48 @@ namespace ConcurrentRedBlackTree
                     {
                         if (insertedNode == insertedNode.Parent.Right)
                         {
+                            RedBlackNode<TKey, TValue> child = null;
+                            while(true)
+                            {
+                                child = insertedNode.Left;
+                                if(!child.OccupyNodeAtomically())
+                                {
+                                    continue;
+                                }
+
+                                if(insertedNode.Left != child)
+                                {
+                                    child.FreeNodeAtomically();
+                                    continue;
+                                }
+
+                                break;
+                            }
                             insertedNode = insertedNode.Parent;
                             RotateLeft(insertedNode);
+                            child.FreeNodeAtomically();
                         }
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
                         insertedNode.Parent.Parent.Color = RedBlackNodeType.Red;
+
+                        RedBlackNode<TKey, TValue> child = null;
+                        while(true)
+                        {
+                            child = insertedNode.Parent.Right;
+                            if(!child.OccupyNodeAtomically())
+                            {
+                                continue;
+                            }
+
+                            if(insertedNode.Parent.Right != child)
+                            {
+                                child.FreeNodeAtomically();
+                                continue;
+                            }
+
+                            break;
+                        }
 
                         RedBlackNode<TKey, TValue> gp = null;
                         while(true)
@@ -442,8 +478,10 @@ namespace ConcurrentRedBlackTree
 
                             break;
                         }
+
                         RotateRight(insertedNode.Parent.Parent);
                         gp.FreeNodeAtomically();
+                        child.FreeNodeAtomically();
                     }
                 }
                 else
@@ -463,12 +501,48 @@ namespace ConcurrentRedBlackTree
                     {
                         if (insertedNode == insertedNode.Parent.Left)
                         {
+                            RedBlackNode<TKey, TValue> child = null;
+                            while(true)
+                            {
+                                child = insertedNode.Right;
+                                if(!child.OccupyNodeAtomically())
+                                {
+                                    continue;
+                                }
+
+                                if(insertedNode.Right != child)
+                                {
+                                    child.FreeNodeAtomically();
+                                    continue;
+                                }
+
+                                break;
+                            }
                             insertedNode = insertedNode.Parent;
                             RotateRight(insertedNode);
+                            child.FreeNodeAtomically();
                         }
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
                         insertedNode.Parent.Parent.Color = RedBlackNodeType.Red;
+
+                        RedBlackNode<TKey, TValue> child = null;
+                        while(true)
+                        {
+                            child = insertedNode.Parent.Left;
+                            if(!child.OccupyNodeAtomically())
+                            {
+                                continue;
+                            }
+
+                            if(insertedNode.Parent.Left != child)
+                            {
+                                child.FreeNodeAtomically();
+                                continue;
+                            }
+
+                            break;
+                        }
 
                         RedBlackNode<TKey, TValue> gp = null;
                         while(true)
@@ -484,11 +558,12 @@ namespace ConcurrentRedBlackTree
                                 gp.FreeNodeAtomically();
                                 continue;
                             }
-                            
+
                             break;
                         }
                         RotateLeft(insertedNode.Parent.Parent);
                         gp.FreeNodeAtomically();
+                        child.FreeNodeAtomically();
                     }
                 }
             }
