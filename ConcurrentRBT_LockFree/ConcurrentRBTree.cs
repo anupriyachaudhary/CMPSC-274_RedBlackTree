@@ -424,7 +424,18 @@ namespace ConcurrentRedBlackTree
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
                         insertedNode.Parent.Parent.Color = RedBlackNodeType.Red;
+
+                        var gp = insertedNode.Parent.Parent.Parent;
+                        while(true)
+                        {
+                            if(!gp.OccupyNodeAtomically())
+                            {
+                                continue;
+                            }
+                            break;
+                        }
                         RotateRight(insertedNode.Parent.Parent);
+                        gp.FreeNodeAtomically();
                     }
                 }
                 else
@@ -450,7 +461,18 @@ namespace ConcurrentRedBlackTree
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
                         insertedNode.Parent.Parent.Color = RedBlackNodeType.Red;
+
+                        var gp = insertedNode.Parent.Parent.Parent;
+                        while(true)
+                        {
+                            if(!gp.OccupyNodeAtomically())
+                            {
+                                continue;
+                            }
+                            break;
+                        }
                         RotateLeft(insertedNode.Parent.Parent);
+                        gp.FreeNodeAtomically();
                     }
                 }
             }
@@ -460,22 +482,6 @@ namespace ConcurrentRedBlackTree
        
         private void RotateRight(RedBlackNode<TKey, TValue> rotateNode)
         {
-            var gp = rotateNode.Parent;
-            while(true)
-            {
-                if(!gp.OccupyNodeAtomically())
-                {
-                    continue;
-                }
-
-                if(rotateNode.Parent != gp)
-                {
-                    gp.FreeNodeAtomically();
-                    continue;
-                }
-                break;
-            }
-
             var workNode = rotateNode.Left;
 
             rotateNode.Left = workNode.Right;
@@ -513,28 +519,10 @@ namespace ConcurrentRedBlackTree
             {
                 rotateNode.Parent = workNode;
             }
-
-            gp.FreeNodeAtomically();
         }
 
         private void RotateLeft(RedBlackNode<TKey, TValue> rotateNode)
         {
-            var gp = rotateNode.Parent;
-            while(true)
-            {
-                if(!gp.OccupyNodeAtomically())
-                {
-                    continue;
-                }
-
-                if(rotateNode.Parent != gp)
-                {
-                    gp.FreeNodeAtomically();
-                    continue;
-                }
-                break;
-            }
-
             var workNode = rotateNode.Right;
 
             rotateNode.Right = workNode.Left;
@@ -571,8 +559,6 @@ namespace ConcurrentRedBlackTree
             {
                 rotateNode.Parent = workNode;
             }
-
-            gp.FreeNodeAtomically();
         }
     
         public bool isValidRBT(TKey nodesMaxKeyValue)
