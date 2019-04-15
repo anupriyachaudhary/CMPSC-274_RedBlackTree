@@ -54,7 +54,7 @@ namespace ConcurrentRedBlackTree
                 Console.WriteLine($"After insertion, RBT is invalid");
             }
 
-            rbTree.printLevelOrder();
+            //rbTree.printLevelOrder();
 
             Console.WriteLine("************* Delete Test ***************");
             Console.WriteLine();
@@ -93,11 +93,11 @@ namespace ConcurrentRedBlackTree
             }
             var keysToDelete = deleteItems.ToArray();
 
-            Console.WriteLine("Deleted keys");
+            /* Console.WriteLine("Deleted keys");
             foreach (var item in keysToDelete)
             {
                 Console.WriteLine(item);
-            }
+            }*/
             
             var threads = new Thread[numOfThreads];
 
@@ -190,8 +190,8 @@ namespace ConcurrentRedBlackTree
             //var data = new long[] {86, 122, 21, 160, 98, 25, 154, 62, 138, 119, 89, 87, 130, 141, 120, 67};
             //values = data.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
 
-            values.ToList().ForEach(m => Console.Write($"{m.Item1}, "));
-            Console.WriteLine("\n\n");
+            //values.ToList().ForEach(m => Console.Write($"{m.Item1}, "));
+            //Console.WriteLine("\n\n");
 
             var threads = new Thread[numOfThreads];
 
@@ -205,7 +205,7 @@ namespace ConcurrentRedBlackTree
                     for (var j = start; j <= end; j++)
                     {
                         rbTree.Add(values[j].Item1, values[j].Item2);
-                        Console.WriteLine($"{DateTime.UtcNow.ToFileTimeUtc()},{Thread.CurrentThread.ManagedThreadId},{values[j].Item1}");
+                        //Console.WriteLine($"{DateTime.UtcNow.ToFileTimeUtc()},{Thread.CurrentThread.ManagedThreadId},{values[j].Item1}");
                     }
                 });
                 threads[i].Name = i.ToString();
