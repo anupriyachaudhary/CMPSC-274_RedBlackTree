@@ -432,6 +432,13 @@ namespace ConcurrentRedBlackTree
                             {
                                 continue;
                             }
+
+                            if(insertedNode.Parent.Parent != gp)
+                            {
+                                gp.FreeNodeAtomically();
+                                continue;
+                            }
+
                             break;
                         }
                         RotateRight(insertedNode.Parent.Parent);
@@ -469,6 +476,13 @@ namespace ConcurrentRedBlackTree
                             {
                                 continue;
                             }
+
+                            if(insertedNode.Parent.Parent != gp)
+                            {
+                                gp.FreeNodeAtomically();
+                                continue;
+                            }
+                            
                             break;
                         }
                         RotateLeft(insertedNode.Parent.Parent);
