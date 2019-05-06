@@ -33,7 +33,7 @@ namespace ConcurrentRedBlackTree
             // const int searchOperationsPerThread = 10000;
             // const long nodesMaxKeyValue = 10000000;
 
-            
+            var rbTree = new ConcurrentRBTree<long, Data>();
 
             //start test
             Console.WriteLine("*********** Starting Test **********");
@@ -41,12 +41,10 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
 
             //SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
-            while(true)
-            {
-                var rbTree = new ConcurrentRBTree<long, Data>();
-                ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread * 4, totalNodesToInsert, nodesMaxKeyValue);
-                ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
-            }
+            
+            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread * 4, totalNodesToInsert, nodesMaxKeyValue);
+            ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
+            
             // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
 
