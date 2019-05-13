@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Collections.Concurrent;
+using System.Linq;
 
 namespace ConcurrentRedBlackTree
 {
@@ -54,11 +56,6 @@ namespace ConcurrentRedBlackTree
             return node == null ? null : new Tuple<TKey, TValue>(node.Key, node.Data);
         }
 
-        public void Add(TKey key, TValue value)
-        {
-            New(key, value);
-        }
-
         public int MaxDepth()
         {
             return MaxDepthInternal(_root);
@@ -103,7 +100,24 @@ namespace ConcurrentRedBlackTree
             }
         }
 
-        private void New(TKey key, TValue data)
+        public void Add(TKey key, TValue value)
+        {
+            Guid pid = Guid.NewGuid();
+            try
+            {
+                New(key, value, pid);
+            }
+            catch (Exception)
+            {
+                return;
+            }
+            finally
+            {
+                moveUpStructDict.TryRemove(pid, out var _);
+            }
+        }
+
+        private void New(TKey key, TValue data, Guid pid)
         {
             if (data == null)
             {
@@ -115,7 +129,9 @@ namespace ConcurrentRedBlackTree
             // create new node
             var newNode = new RedBlackNode<TKey, TValue>(key, data);
 
-            Insert(newNode);
+            var localArea = new RedBlackNode<TKey, TValue>[4];
+
+            Insert(newNode, localArea, pid);
 
             if(_root.Left.IsSentinel && _root.Right.IsSentinel)
             {
@@ -125,24 +141,41 @@ namespace ConcurrentRedBlackTree
                 return;
             }
 
-            var localArea = new RedBlackNode<TKey, TValue>[4];
-            localArea[0] = newNode;
-            localArea[1] = newNode.Parent;
-
-            if(newNode.Parent != _dummy && newNode.Parent.Parent != _dummy)
-            {
-                localArea[2] = newNode.Parent.Parent;
-            }
-            
-            if (newNode.Parent != _dummy && newNode.Parent.Parent != _dummy)
-            {
-                localArea[3] = newNode.Parent.Parent.Left == newNode.Parent
-                    ? newNode.Parent.Parent.Right
-                    : newNode.Parent.Parent.Left;
-            }
-
             // restore red-black properties
-            BalanceTreeAfterInsert(newNode, localArea);
+            BalanceTreeAfterInsert(newNode, localArea, pid);
+
+            // Release markers of local area
+            var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
+
+            RedBlackNode<TKey, TValue> top = null;
+            if(localArea[1].Parent != localArea[2])
+            {
+                if(localArea[1].Parent == localArea[0])
+                {
+                    top = localArea[0];
+                }
+                else
+                {
+                    top = localArea[1];
+                }
+            }
+            else
+            {
+                top = localArea[2];
+            }
+
+            while(true)
+            {
+                if(GetFlagsForMarkers(top, pid, intentionMarkers, localArea[0]))
+                {
+                    break;
+                }
+            }
+            foreach (var node in intentionMarkers)
+            {
+                node.Marker  = Guid.Empty;
+            }
+            ReleaseFlags(pid, false, intentionMarkers.ToList());
 
             foreach (var node in localArea)
             {
@@ -150,24 +183,23 @@ namespace ConcurrentRedBlackTree
             }
         }
 
-        private void Insert(RedBlackNode<TKey, TValue> newNode)
+        private void Insert(RedBlackNode<TKey, TValue> newNode, RedBlackNode<TKey, TValue>[] localArea, Guid pid)
         {
             while (true)
             {
                 if(_root == null)
                 {
-                    newNode.OccupyNodeAtomically();
                     if(!_dummy.OccupyNodeAtomically())
                     {
-                        newNode.FreeNodeAtomically();
                         continue;
                     }
                     if(!_dummy.Left.IsSentinel)
                     {
-                        newNode.FreeNodeAtomically();
                         _dummy.FreeNodeAtomically();
                         continue;
                     }
+                    newNode.OccupyNodeAtomically();
+
                     // first node added
                     newNode.Parent = _dummy;
                     _dummy.Left = newNode;
@@ -202,7 +234,7 @@ namespace ConcurrentRedBlackTree
 
                     if(nextNode.IsSentinel)
                     {
-                        isLocalAreaOccupied = OccupyLocalAreaForInsert(newNode);
+                        isLocalAreaOccupied = OccupyLocalAreaForInsert(newNode, localArea, pid);
                         break;
                     }
 
@@ -243,7 +275,7 @@ namespace ConcurrentRedBlackTree
             }
         }
 
-        private bool OccupyLocalAreaForInsert(RedBlackNode<TKey, TValue> node)
+        private bool OccupyLocalAreaForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] localArea, Guid pid)
         {
             // occupy the node to be inserted
             if (!node.OccupyNodeAtomically())
@@ -253,12 +285,6 @@ namespace ConcurrentRedBlackTree
             }
 
             var grandParent = node.Parent.Parent;
-
-            // if no parent we are done
-            if (grandParent == _dummy)
-            {
-                return true;
-            }
 
             // occupy grandparent   
             if (!grandParent.OccupyNodeAtomically())
@@ -280,11 +306,6 @@ namespace ConcurrentRedBlackTree
 
             var uncle = grandParent.Left == node.Parent ? grandParent.Right : grandParent.Left;
 
-            if (uncle.IsSentinel)
-            {
-                return true;
-            }
-
             if (!uncle.OccupyNodeAtomically())
             {
                 grandParent.FreeNodeAtomically();
@@ -294,7 +315,8 @@ namespace ConcurrentRedBlackTree
             }
 
             //check if uncle is not changed
-            if (uncle.Parent != grandParent)
+            var temp_uncle = (grandParent.Left == node.Parent ? grandParent.Right : grandParent.Left);
+            if (uncle != temp_uncle)
             {
                 uncle.FreeNodeAtomically();
                 grandParent.FreeNodeAtomically();
@@ -303,98 +325,76 @@ namespace ConcurrentRedBlackTree
                 return false;
             }
 
+            localArea[0] = node;
+            localArea[1] = node.Parent;
+            localArea[2] = grandParent;
+            localArea[3] = uncle;
+
+            if(!GetFlagsAndMarkersAbove(grandParent, localArea, pid, 0, node.Parent))
+            {
+                uncle.FreeNodeAtomically();
+                grandParent.FreeNodeAtomically();
+                node.Parent.FreeNodeAtomically();
+                node.FreeNodeAtomically();
+                return false;
+            }
             return true;
         }
 
-        private void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working)
+        private void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working, Guid pid)
         {
-            RedBlackNode<TKey, TValue> newParent = null, newGrandParent = null, newUncle = null;
+            RedBlackNode<TKey, TValue> newParent = node.Parent, newGrandParent = node.Parent.Parent, newUncle = null;
 
             while (true)
             {
-                if (node.Parent == _dummy)
+                if(GetFlagsAndMarkersAbove(node, working, pid, 2))
                 {
                     break;
                 }
-
-                newParent = node.Parent;
-
-                // occupy parent node atomically
-                if (!newParent.OccupyNodeAtomically())
-                {
-                    continue;
-                }
-
-                // check if parent still pointing to node
-                if (newParent.Left != node && newParent.Right != node)
-                {
-                    newParent.FreeNodeAtomically();
-                    continue;
-                }
-
-                newGrandParent = newParent.Parent;
-
-                // if no parent we are done
-                if (newGrandParent == _dummy)
-                {
-                    break;
-                }
-
-                // occupy grandparent   
-                if (!newGrandParent.OccupyNodeAtomically())
-                {
-                    newParent.FreeNodeAtomically();
-                    continue;
-                }
-
-                // if grand parent changed before occupying, return false
-                if (newGrandParent != newParent.Parent)
-                {
-                    // free grand parent
-                    newGrandParent.FreeNodeAtomically();
-                    newParent.FreeNodeAtomically();
-                    continue;
-                }
-
-                newUncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
-
-                if (newUncle.IsSentinel)
-                {
-                    break;
-                }
-
-                if (!newUncle.OccupyNodeAtomically())
-                {
-                    newGrandParent.FreeNodeAtomically();
-                    newParent.FreeNodeAtomically();
-                    continue;
-                }
-
-                //check if uncle is not changed
-                if (newUncle.Parent != newGrandParent)
-                {
-                    newUncle.FreeNodeAtomically();
-                    newGrandParent.FreeNodeAtomically();
-                    newParent.FreeNodeAtomically();
-                    continue;
-                }
-
-                break;
             }
 
-            // free the locks
-            working[0]?.FreeNodeAtomically();
-            working[1]?.FreeNodeAtomically();
-            working[3]?.FreeNodeAtomically();
+            while(true)
+            {
+                newUncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
 
-            working[0] = working[2];
+                if (!IsIn(newUncle, pid))
+                {
+                    if(newUncle.OccupyNodeAtomically())
+                    {
+                        //check if uncle is not changed
+                        var temp_uncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
+                        if (newUncle != temp_uncle)
+                        {
+                            newUncle.FreeNodeAtomically();
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+
+            // release flag on old local area
+            List<RedBlackNode<TKey, TValue>> nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
+            nodesToRelease.Add(working[0]);
+            nodesToRelease.Add(working[1]);
+            nodesToRelease.Add(working[3]);
+            ReleaseFlags(pid, true, nodesToRelease);
+
+            working[0] = node;
             working[1] = newParent;
             working[2] = newGrandParent;
             working[3] = newUncle;
         }
 
+
         private void BalanceTreeAfterInsert(RedBlackNode<TKey, TValue> insertedNode,
-            RedBlackNode<TKey, TValue>[] working)
+            RedBlackNode<TKey, TValue>[] working, Guid pid)
         {
             // maintain red-black tree properties after adding newNode
             while (insertedNode != _root && insertedNode.Parent.Color == RedBlackNodeType.Red)
@@ -412,7 +412,7 @@ namespace ConcurrentRedBlackTree
 
                         // continue loop with grandparent
                         insertedNode = insertedNode.Parent.Parent;
-                        MoveLocalAreaUpwardForInsert(insertedNode, working);
+                        MoveLocalAreaUpwardForInsert(insertedNode, working, pid);
                     }
                     else
                     {
@@ -458,7 +458,7 @@ namespace ConcurrentRedBlackTree
 
                         // continue loop with grandparent
                         insertedNode = insertedNode.Parent.Parent;
-                        MoveLocalAreaUpwardForInsert(insertedNode, working);
+                        MoveLocalAreaUpwardForInsert(insertedNode, working, pid);
                     }
                     else
                     {
