@@ -371,32 +371,7 @@ namespace ConcurrentRedBlackTree
                 }
             }
 
-            //check if y still a successor of z
-            bool isStillSuccessor = true;
-            RedBlackNode<TKey, TValue> workNode;
-            if(y == z)
-            {
-                if(!z.Left.IsSentinel && !z.Right.IsSentinel)
-                {
-                    isStillSuccessor = false;
-                    Console.WriteLine("Not Still Successor!");
-                }
-            }
-            else
-            {
-                workNode = z.Right;
-                while (!workNode.Left.IsSentinel)
-                {
-                    workNode = workNode.Left;
-                }
-                if(workNode != y)
-                {
-                    isStillSuccessor = false;
-                    Console.WriteLine("Not Still Successor!");
-                }
-            }
-
-            if(!isStillSuccessor || !GetFlagsAndMarkersAbove(yp, localArea, pid, 0, z))
+            if(!GetFlagsAndMarkersAbove(yp, localArea, pid, 0, z))
             {
                 x.FreeNodeAtomically();
                 w.FreeNodeAtomically();
@@ -576,24 +551,54 @@ namespace ConcurrentRedBlackTree
                 return IsSetMarkerSuccess;
             }
 
-            else if (numAdditional == 1)
-            {
-                var nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
+            var nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
 
-                // get additional marker(s) above
-                RedBlackNode<TKey, TValue> firstnew = markerPositions[3].Parent;
+            // get additional marker(s) above
+            RedBlackNode<TKey, TValue> firstnew = markerPositions[3].Parent;
+            
+            if (!IsIn(firstnew, pid) && !firstnew.OccupyNodeAtomically()) 
+            {
+                nodesToRelease.Add(markerPositions[0]);
+                nodesToRelease.Add(markerPositions[1]);
+                nodesToRelease.Add(markerPositions[2]);
+                nodesToRelease.Add(markerPositions[3]);
+                ReleaseFlags(pid, false, nodesToRelease.ToList());
+                return false;
+            }
+            if (firstnew != markerPositions[3].Parent && !SpacingRuleIsSatisfied(firstnew, pid, false, null)) 
+            { 
+                nodesToRelease.Add(markerPositions[0]);
+                nodesToRelease.Add(markerPositions[1]);
+                nodesToRelease.Add(markerPositions[2]);
+                nodesToRelease.Add(markerPositions[3]);
+                nodesToRelease.Add(firstnew);
+                ReleaseFlags(pid, false, nodesToRelease.ToList());
+                return false;
+            }
+
+            if (numAdditional == 1)
+            {
+                firstnew.Marker = pid;
+                nodesToRelease.Add(markerPositions[1]);
+                nodesToRelease.Add(markerPositions[2]);
+                nodesToRelease.Add(markerPositions[3]);
+                nodesToRelease.Add(firstnew);
+
+                localArea[1] = markerPositions[0];
+                markerPositions[0].Marker = Guid.Empty;
+
+                ReleaseFlags(pid, true, nodesToRelease);
                 
-                if (!IsIn(firstnew, pid) && !firstnew.OccupyNodeAtomically()) 
+                return true;;
+            }
+
+            if (numAdditional == 2)
+            {
+                // get additional marker above
+                RedBlackNode<TKey, TValue> secondnew = markerPositions[3].Parent.Parent;
+                
+                if (!IsIn(secondnew, pid) && !secondnew.OccupyNodeAtomically()) 
                 {
-                    nodesToRelease.Add(markerPositions[0]);
-                    nodesToRelease.Add(markerPositions[1]);
-                    nodesToRelease.Add(markerPositions[2]);
-                    nodesToRelease.Add(markerPositions[3]);
-                    ReleaseFlags(pid, false, nodesToRelease.ToList());
-                    return false;
-                }
-                if (firstnew != markerPositions[3].Parent && !SpacingRuleIsSatisfied(firstnew, pid, false, null)) 
-                { 
                     nodesToRelease.Add(markerPositions[0]);
                     nodesToRelease.Add(markerPositions[1]);
                     nodesToRelease.Add(markerPositions[2]);
@@ -602,15 +607,27 @@ namespace ConcurrentRedBlackTree
                     ReleaseFlags(pid, false, nodesToRelease.ToList());
                     return false;
                 }
+                if (secondnew != markerPositions[3].Parent.Parent && !SpacingRuleIsSatisfied(secondnew, pid, false, null)) 
+                { 
+                    nodesToRelease.Add(markerPositions[0]);
+                    nodesToRelease.Add(markerPositions[1]);
+                    nodesToRelease.Add(markerPositions[2]);
+                    nodesToRelease.Add(markerPositions[3]);
+                    nodesToRelease.Add(firstnew);
+                    nodesToRelease.Add(secondnew);
+                    ReleaseFlags(pid, false, nodesToRelease.ToList());
+                    return false;
+                }
                 firstnew.Marker = pid;
+                secondnew.Marker = pid;
 
-                nodesToRelease.Add(markerPositions[1]);
                 nodesToRelease.Add(markerPositions[2]);
                 nodesToRelease.Add(markerPositions[3]);
                 nodesToRelease.Add(firstnew);
+                nodesToRelease.Add(secondnew);
 
-                localArea[1] = markerPositions[0];
                 markerPositions[0].Marker = Guid.Empty;
+                markerPositions[1].Marker = Guid.Empty;
 
                 ReleaseFlags(pid, true, nodesToRelease);
                 
