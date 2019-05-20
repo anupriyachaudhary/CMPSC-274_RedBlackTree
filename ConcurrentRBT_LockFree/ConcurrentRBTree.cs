@@ -66,7 +66,7 @@ namespace ConcurrentRedBlackTree
             return CountInternal(_root);
         }
 
-        private static int CountInternal(RedBlackNode<TKey, TValue> treeNode)
+        private int CountInternal(RedBlackNode<TKey, TValue> treeNode)
         {
             if (treeNode.IsSentinel)
             {
