@@ -16,17 +16,17 @@ namespace ConcurrentRedBlackTree
         static void Main(string[] args)
         {
             // // variables for insert
-            const int numOfThreads = 1;
-            const long nodesPerThread = 10000000;
-            const long totalNodesToInsert = numOfThreads * nodesPerThread;
-            const long nodesMaxKeyValue = 1000000000;
+            //const int numOfThreads = 32;
+            //const long nodesPerThread = 100000;
+            //const long totalNodesToInsert = numOfThreads * nodesPerThread;
+            //const long nodesMaxKeyValue = 1000000000;
 
             // Variables for delete
-            // const int numOfThreads = 6;
-            // const int nodesPerThread = 1000;
-            // const int totalNodesToDelete = numOfThreads * nodesPerThread;
-            // const long totalNodesToInsert = totalNodesToDelete * 4;
-            // const long nodesMaxKeyValue = totalNodesToInsert * 10;
+            const int numOfThreads = 64;
+            const int nodesPerThread = 1000;
+            const int totalNodesToDelete = numOfThreads * nodesPerThread;
+            const long totalNodesToInsert = totalNodesToDelete * 4;
+            const long nodesMaxKeyValue = totalNodesToInsert * 10;
 
             // Variables for simulatenous insert and delete
             //const int numOfThreads = 12;
@@ -50,9 +50,9 @@ namespace ConcurrentRedBlackTree
 
             //SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
             
-            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue, true);
+            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread * 4, totalNodesToInsert, nodesMaxKeyValue, true);
 
-            //ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
+            ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
 
             //ConcurrentInsertDeleteTest(rbTree, totalNodesInTree, numOfThreads, nodesPerThread, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
             
