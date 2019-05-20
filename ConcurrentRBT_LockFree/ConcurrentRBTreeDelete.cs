@@ -878,7 +878,10 @@ namespace ConcurrentRedBlackTree
 
                 if (tp.Marker != Guid.Empty)
                 {
-                    tp.FreeNodeAtomically();
+                    if (!isParentOccupied)
+                    {
+                        tp.FreeNodeAtomically();
+                    }
                     return false;
                 }
             }
@@ -891,8 +894,11 @@ namespace ConcurrentRedBlackTree
             {
                 if(z == null || z != tp)
                 {
-                    nodesToRelease.Add(tp);
-                    ReleaseFlags(pid, false, nodesToRelease);
+                    if (!isParentOccupied)
+                    {
+                        nodesToRelease.Add(tp);
+                        ReleaseFlags(pid, false, nodesToRelease);
+                    }
                 }
                 return false;
             }
@@ -908,7 +914,10 @@ namespace ConcurrentRedBlackTree
             nodesToRelease.Add(ts);
             if(z == null || z != tp)
             {
-                nodesToRelease.Add(tp);
+                if (!isParentOccupied)
+                {
+                    nodesToRelease.Add(tp);
+                }
             }
             ReleaseFlags(pid, false, nodesToRelease);
 
