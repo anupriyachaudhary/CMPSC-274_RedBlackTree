@@ -330,7 +330,7 @@ namespace ConcurrentRedBlackTree
             localArea[2] = grandParent;
             localArea[3] = uncle;
 
-            if(!GetFlagsAndMarkersAbove(grandParent, localArea, pid, 0, node.Parent))
+            if(!GetFlagsAndMarkersAbove(grandParent, localArea, pid, 0))
             {
                 uncle.FreeNodeAtomically();
                 grandParent.FreeNodeAtomically();

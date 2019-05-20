@@ -595,7 +595,7 @@ namespace ConcurrentRedBlackTree
             if (numAdditional == 2)
             {
                 // get additional marker above
-                RedBlackNode<TKey, TValue> secondnew = markerPositions[3].Parent.Parent;
+                RedBlackNode<TKey, TValue> secondnew = firstnew.Parent;
                 
                 if (!IsIn(secondnew, pid) && !secondnew.OccupyNodeAtomically()) 
                 {
@@ -607,7 +607,7 @@ namespace ConcurrentRedBlackTree
                     ReleaseFlags(pid, false, nodesToRelease.ToList());
                     return false;
                 }
-                if (secondnew != markerPositions[3].Parent.Parent && !SpacingRuleIsSatisfied(secondnew, pid, false, null)) 
+                if (secondnew != firstnew.Parent && !SpacingRuleIsSatisfied(secondnew, pid, false, null)) 
                 { 
                     nodesToRelease.Add(markerPositions[0]);
                     nodesToRelease.Add(markerPositions[1]);
