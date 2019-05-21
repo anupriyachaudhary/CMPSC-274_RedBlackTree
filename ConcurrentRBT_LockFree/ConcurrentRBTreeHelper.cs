@@ -7,7 +7,10 @@ namespace ConcurrentRedBlackTree
 {
     public static class ConcurrentRBTreeHelper
     {
-        public static bool OccupyAndCheck<TKey, TValue>(Func<RedBlackNode<TKey, TValue>> assign, Func<bool> check = null)
+        public static bool OccupyAndCheck<TKey, TValue>(
+            Func<RedBlackNode<TKey, TValue>> assign,
+            Func<bool> check = null,
+            Action rollback = null)
             where TValue : class
             where TKey : IComparable<TKey>, IComparable, IEquatable<TKey>
         {
@@ -19,6 +22,7 @@ namespace ConcurrentRedBlackTree
                 // try occupying
                 if (!node.OccupyNodeAtomically())
                 {
+                    rollback?.Invoke();
                     return false;
                 }
             }
@@ -26,6 +30,7 @@ namespace ConcurrentRedBlackTree
             {
                 if (check.Invoke() && !node.OccupyNodeAtomically())
                 {
+                    rollback?.Invoke();
                     return false;
                 }
             }

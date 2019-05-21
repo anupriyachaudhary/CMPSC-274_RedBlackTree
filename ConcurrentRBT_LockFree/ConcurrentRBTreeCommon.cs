@@ -322,7 +322,10 @@ namespace ConcurrentRedBlackTree
             {
                 if (!isParentOccupied)
                 {
-                    ConcurrentRBTreeHelper.OccupyAndCheck<TKey, TValue>(() => t.Parent, () => !IsIn(t.Parent, pid));
+                    if(!ConcurrentRBTreeHelper.OccupyAndCheck<TKey, TValue>(() => t.Parent, () => !IsIn(t.Parent, pid)))
+                    {
+                        return false;
+                    }
                 }
 
                 if (IsMarkerSet(tp.Marker))
@@ -336,30 +339,29 @@ namespace ConcurrentRedBlackTree
             }
 
             //check that t's sibling has no flag or marker or PIDtoIgnore
-            var nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
-            var ts = (t == tp.Left ? tp.Right : tp.Left);
-
-            if (!IsIn(ts, pid) && !ts.OccupyNodeAtomically())
-            {
-                if (z == null || z != tp)
+            if (ConcurrentRBTreeHelper.OccupyAndCheck<TKey, TValue>(() => t == tp.Left ? tp.Right : tp.Left,
+                () => !IsIn(t == tp.Left ? tp.Right : tp.Left, pid),
+                () =>
                 {
-                    if (!isParentOccupied)
+                    if ((z == null || z != tp) && !isParentOccupied)
                     {
-                        nodesToRelease.Add(tp);
-                        ReleaseFlagsAfterFailure(nodesToRelease, pid);
+                        ReleaseFlagsAfterFailure(new []{ tp }, pid);
                     }
-                }
+                }))
+            {
                 return false;
             }
 
+            var ts = t == tp.Left ? tp.Right : tp.Left;
             var PIDtoIgnore = GetPIDtoIgnore(pid);
             bool isMarkerAllowed = true;
-            if (ts.Marker != Guid.Empty && (!IsTooCloseProcess(pid) || ts.Marker != PIDtoIgnore))
+            if (IsMarkerSet(ts.Marker) && (!IsTooCloseProcess(pid) || ts.Marker != PIDtoIgnore))
             {
                 isMarkerAllowed = false;
             }
 
             // release flags on ts and tp
+            var nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
             nodesToRelease.Add(ts);
             if (z == null || z != tp)
             {
