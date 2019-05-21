@@ -339,7 +339,7 @@ namespace ConcurrentRedBlackTree
             }
 
             //check that t's sibling has no flag or marker or PIDtoIgnore
-            if (ConcurrentRBTreeHelper.OccupyAndCheck<TKey, TValue>(() => t == tp.Left ? tp.Right : tp.Left,
+            if (!ConcurrentRBTreeHelper.OccupyAndCheck<TKey, TValue>(() => t == tp.Left ? tp.Right : tp.Left,
                 () => !IsIn(t == tp.Left ? tp.Right : tp.Left, pid),
                 () =>
                 {
@@ -378,6 +378,104 @@ namespace ConcurrentRedBlackTree
         private bool IsMarkerSet(Guid marker)
         {
             return marker != Guid.Empty;
+        }
+
+        private bool setMarker(
+            List<RedBlackNode<TKey, TValue>> nodesToMark,
+            Guid pid,
+            RedBlackNode<TKey, TValue> z = null)
+        {
+            var nodesToUnMark = new List<RedBlackNode<TKey, TValue>>();
+
+            RedBlackNode<TKey, TValue> node;
+            for (var i = 0; i < 3; i++)
+            {
+                node = nodesToMark[i];
+                if (!IsSpacingRuleSatisfied(node, pid, true, z))
+                {
+                    foreach (var n in nodesToUnMark)
+                    {
+                        n.Marker = Guid.Empty;
+                    }
+                    return false;
+                }
+                node.Marker = pid;
+                nodesToUnMark.Add(node);
+            }
+
+            node = nodesToMark[3];
+            if (!IsSpacingRuleSatisfied(node, pid, false, z))
+            {
+                foreach (var n in nodesToUnMark)
+                {
+                    n.Marker = Guid.Empty;
+                }
+                return false;
+            }
+            node.Marker = pid;
+
+            return true;
+        }
+
+        private bool GetFlagsForMarkers(
+            RedBlackNode<TKey, TValue> start,
+            Guid pid,
+            RedBlackNode<TKey, TValue>[] markerPositions,
+            RedBlackNode<TKey, TValue> z = null)
+        {
+            var nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
+
+            markerPositions[0] = start.Parent;
+            if (!GetFlagForMarker(markerPositions[0], start, nodesToRelease, pid, z))
+            {
+                return false;
+            }
+
+            markerPositions[1] = markerPositions[0].Parent;
+            if (!GetFlagForMarker(markerPositions[1], markerPositions[0], nodesToRelease, pid, z))
+            {
+                return false;
+            }
+
+            markerPositions[2] = markerPositions[1].Parent;
+            if (!GetFlagForMarker(markerPositions[2], markerPositions[1], nodesToRelease, pid, z))
+            {
+                return false;
+            }
+
+            markerPositions[3] = markerPositions[2].Parent;
+            if (!GetFlagForMarker(markerPositions[3], markerPositions[2], nodesToRelease, pid, z))
+            {
+                return false;
+            }
+            return true;
+        }
+
+        private bool GetFlagForMarker(
+            RedBlackNode<TKey, TValue> node,
+            RedBlackNode<TKey, TValue> prevNode,
+            List<RedBlackNode<TKey, TValue>> nodesToRelease,
+            Guid pid,
+            RedBlackNode<TKey, TValue> z = null)
+        {
+            if (z == null || z != node)
+            {
+                if (!IsIn(node, pid) && !node.OccupyNodeAtomically())
+                {
+                    ReleaseFlagsAfterFailure(nodesToRelease, pid);
+                    return false;
+                }
+
+                nodesToRelease.Add(node);
+
+                // verify parent is unchanged
+                if (node != prevNode.Parent)
+                {
+                    ReleaseFlagsAfterFailure(nodesToRelease, pid);
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }

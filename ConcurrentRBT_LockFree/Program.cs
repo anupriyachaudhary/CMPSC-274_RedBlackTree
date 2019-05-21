@@ -22,7 +22,7 @@ namespace ConcurrentRedBlackTree
             //const long nodesMaxKeyValue = 1000000000;
 
             // Variables for delete
-            const int numOfThreads = 1;
+            const int numOfThreads = 32;
             const int nodesPerThread = 1000;
             const int totalNodesToDelete = numOfThreads * nodesPerThread;
             const long totalNodesToInsert = totalNodesToDelete * 4;
@@ -343,6 +343,10 @@ namespace ConcurrentRedBlackTree
                     for (var j = start; j <= end; j++)
                     {
                         rbTree.Add(values[j].Item1, values[j].Item2);
+                        if(start != j && (j - start) % 1000 == 0)
+                        {
+                            Console.WriteLine("  {0}", rbTree.Count());
+                        }
                     }
                 });
                 threads[i].Name = (i+1).ToString();

@@ -9,7 +9,7 @@ namespace ConcurrentRedBlackTree
         where TValue : class
         where TKey : IComparable<TKey>, IComparable, IEquatable<TKey>
     {
-        private const int DummyNodesCount = 6;
+        private const int DummyNodesCount = 8;
 
         private RedBlackNode<TKey, TValue> _dummy;
 
