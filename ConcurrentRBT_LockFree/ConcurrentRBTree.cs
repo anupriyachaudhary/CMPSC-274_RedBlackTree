@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace ConcurrentRedBlackTree
 {
@@ -103,6 +104,10 @@ namespace ConcurrentRedBlackTree
             }
             foreach (var node in intentionMarkers)
             {
+                if(node.Marker != pid)
+                {
+                    Console.WriteLine($"{node.Marker}, {pid}, {Thread.CurrentThread.Name}");
+                }
                 node.Marker  = Guid.Empty;
             }
             ReleaseFlagsAfterFailure(intentionMarkers, pid);

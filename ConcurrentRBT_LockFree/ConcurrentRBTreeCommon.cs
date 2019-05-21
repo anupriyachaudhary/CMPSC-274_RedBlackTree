@@ -380,7 +380,7 @@ namespace ConcurrentRedBlackTree
             return marker != Guid.Empty;
         }
 
-        private bool setMarker(
+        private bool SetMarker(
             List<RedBlackNode<TKey, TValue>> nodesToMark,
             Guid pid,
             RedBlackNode<TKey, TValue> z = null)
@@ -475,6 +475,104 @@ namespace ConcurrentRedBlackTree
                     return false;
                 }
             }
+            return true;
+        }
+
+        private bool GetFlagsAndMarkersAbove(
+            RedBlackNode<TKey, TValue> start,
+            RedBlackNode<TKey, TValue>[] localArea,
+            Guid pid,
+            int numAdditional,
+            RedBlackNode<TKey, TValue> z = null)
+        {
+            var markerPositions = new RedBlackNode<TKey, TValue>[4];
+
+            if (!GetFlagsForMarkers(start, pid, markerPositions, z))
+            {
+                return false;
+            }
+
+            if (numAdditional == 0)
+            {
+                bool IsSetMarkerSuccess = SetMarker(markerPositions.ToList(), pid, z);
+
+                // release flags on four nodes after putting markers
+                ReleaseFlagsAfterFailure(markerPositions, pid);
+
+                return IsSetMarkerSuccess;
+            }
+
+            var nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
+
+            // get additional marker(s) above
+            RedBlackNode<TKey, TValue> firstnew = markerPositions[3].Parent;
+
+            if (!IsIn(firstnew, pid) && !firstnew.OccupyNodeAtomically())
+            {
+                nodesToRelease.AddRange(markerPositions);
+                ReleaseFlagsAfterFailure(nodesToRelease, pid);
+                return false;
+            }
+            if (firstnew != markerPositions[3].Parent && !IsSpacingRuleSatisfied(firstnew, pid, false, null))
+            {
+                nodesToRelease.AddRange(markerPositions);
+                nodesToRelease.Add(firstnew);
+                ReleaseFlagsAfterFailure(nodesToRelease, pid);
+                return false;
+            }
+
+            if (numAdditional == 1)
+            {
+                firstnew.Marker = pid;
+                nodesToRelease.Add(markerPositions[1]);
+                nodesToRelease.Add(markerPositions[2]);
+                nodesToRelease.Add(markerPositions[3]);
+                nodesToRelease.Add(firstnew);
+
+                localArea[1] = markerPositions[0];
+                markerPositions[0].Marker = Guid.Empty;
+
+                ReleaseFlagsAfterSuccess(nodesToRelease, pid);
+
+                return true; ;
+            }
+
+            if (numAdditional == 2)
+            {
+                // get additional marker above
+                RedBlackNode<TKey, TValue> secondnew = firstnew.Parent;
+
+                if (!IsIn(secondnew, pid) && !secondnew.OccupyNodeAtomically())
+                {
+                    nodesToRelease.AddRange(markerPositions);
+                    nodesToRelease.Add(firstnew);
+                    ReleaseFlagsAfterFailure(nodesToRelease, pid);
+                    return false;
+                }
+                if (secondnew != firstnew.Parent && !IsSpacingRuleSatisfied(secondnew, pid, false, null))
+                {
+                    nodesToRelease.AddRange(markerPositions);
+                    nodesToRelease.Add(firstnew);
+                    nodesToRelease.Add(secondnew);
+                    ReleaseFlagsAfterFailure(nodesToRelease, pid);
+                    return false;
+                }
+                firstnew.Marker = pid;
+                secondnew.Marker = pid;
+
+                nodesToRelease.Add(markerPositions[2]);
+                nodesToRelease.Add(markerPositions[3]);
+                nodesToRelease.Add(firstnew);
+                nodesToRelease.Add(secondnew);
+
+                markerPositions[0].Marker = Guid.Empty;
+                markerPositions[1].Marker = Guid.Empty;
+
+                ReleaseFlagsAfterSuccess(nodesToRelease, pid);
+
+                return true; ;
+            }
+
             return true;
         }
     }
