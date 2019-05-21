@@ -7,6 +7,8 @@ namespace ConcurrentRedBlackTree
         where TValue : class
         where TKey : IComparable, IComparable<TKey>, IEquatable<TKey>
     {
+        private int threadId;
+        
         private int flag;
 
         public Guid Marker {get; set; }
@@ -57,7 +59,12 @@ namespace ConcurrentRedBlackTree
 
         public bool OccupyNodeAtomically()
         {
-            return 0 == Interlocked.CompareExchange(ref flag, 1, 0);
+            var success = 0 == Interlocked.CompareExchange(ref flag, 1, 0);
+            if(success)
+            {
+                threadId = int.Parse(Thread.CurrentThread.Name);
+            }
+            return success;
         }
     }
 }

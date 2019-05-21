@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -9,11 +8,6 @@ namespace ConcurrentRedBlackTree
         where TValue : class
         where TKey : IComparable<TKey>, IComparable, IEquatable<TKey>
     {
-        private readonly object moveUpLock = new object();
-
-        private ConcurrentDictionary<Guid, List<MoveUpStruct<TKey, TValue>>> moveUpStructDict
-            = new ConcurrentDictionary<Guid, List<MoveUpStruct<TKey, TValue>>>();
-
         public bool Remove(TKey key)
         {
             Guid pid = Guid.NewGuid();
@@ -182,7 +176,7 @@ namespace ConcurrentRedBlackTree
                 {
                     node.Marker  = Guid.Empty;
                 }
-                ReleaseFlags(pid, false, intentionMarkers.ToList());
+                ReleaseFlagsAfterFailure(intentionMarkers.ToList(), pid);
                 
                 // Release flags of local area
                 foreach (var node in localArea)
@@ -493,7 +487,7 @@ namespace ConcurrentRedBlackTree
                 {
                     node.Marker = Guid.Empty;
                 }
-                ReleaseFlags(pid, false, intentionMarkers.ToList());
+                ReleaseFlagsAfterFailure(intentionMarkers, pid);
 
                 //  correct relocated intention markers for other processes
                 if (localArea[2].Marker != Guid.Empty 
@@ -546,7 +540,7 @@ namespace ConcurrentRedBlackTree
                 bool IsSetMarkerSuccess = setMarker(markerPositions.ToList(), pid, z);
 
                 // release flags on four nodes after putting markers
-                ReleaseFlags(pid, false, markerPositions.ToList());
+                ReleaseFlagsAfterFailure(markerPositions, pid);
 
                 return IsSetMarkerSuccess;
             }
@@ -562,17 +556,17 @@ namespace ConcurrentRedBlackTree
                 nodesToRelease.Add(markerPositions[1]);
                 nodesToRelease.Add(markerPositions[2]);
                 nodesToRelease.Add(markerPositions[3]);
-                ReleaseFlags(pid, false, nodesToRelease.ToList());
+                ReleaseFlagsAfterFailure(nodesToRelease, pid);
                 return false;
             }
-            if (firstnew != markerPositions[3].Parent && !SpacingRuleIsSatisfied(firstnew, pid, false, null)) 
+            if (firstnew != markerPositions[3].Parent && !IsSpacingRuleSatisfied(firstnew, pid, false, null)) 
             { 
                 nodesToRelease.Add(markerPositions[0]);
                 nodesToRelease.Add(markerPositions[1]);
                 nodesToRelease.Add(markerPositions[2]);
                 nodesToRelease.Add(markerPositions[3]);
                 nodesToRelease.Add(firstnew);
-                ReleaseFlags(pid, false, nodesToRelease.ToList());
+                ReleaseFlagsAfterFailure(nodesToRelease, pid);
                 return false;
             }
 
@@ -587,7 +581,7 @@ namespace ConcurrentRedBlackTree
                 localArea[1] = markerPositions[0];
                 markerPositions[0].Marker = Guid.Empty;
 
-                ReleaseFlags(pid, true, nodesToRelease);
+                ReleaseFlagsAfterSuccess(nodesToRelease, pid);
                 
                 return true;;
             }
@@ -604,10 +598,10 @@ namespace ConcurrentRedBlackTree
                     nodesToRelease.Add(markerPositions[2]);
                     nodesToRelease.Add(markerPositions[3]);
                     nodesToRelease.Add(firstnew);
-                    ReleaseFlags(pid, false, nodesToRelease.ToList());
+                    ReleaseFlagsAfterFailure(nodesToRelease, pid);
                     return false;
                 }
-                if (secondnew != firstnew.Parent && !SpacingRuleIsSatisfied(secondnew, pid, false, null)) 
+                if (secondnew != firstnew.Parent && !IsSpacingRuleSatisfied(secondnew, pid, false, null)) 
                 { 
                     nodesToRelease.Add(markerPositions[0]);
                     nodesToRelease.Add(markerPositions[1]);
@@ -615,7 +609,7 @@ namespace ConcurrentRedBlackTree
                     nodesToRelease.Add(markerPositions[3]);
                     nodesToRelease.Add(firstnew);
                     nodesToRelease.Add(secondnew);
-                    ReleaseFlags(pid, false, nodesToRelease.ToList());
+                    ReleaseFlagsAfterFailure(nodesToRelease, pid);
                     return false;
                 }
                 firstnew.Marker = pid;
@@ -629,7 +623,7 @@ namespace ConcurrentRedBlackTree
                 markerPositions[0].Marker = Guid.Empty;
                 markerPositions[1].Marker = Guid.Empty;
 
-                ReleaseFlags(pid, true, nodesToRelease);
+                ReleaseFlagsAfterSuccess(nodesToRelease, pid);
                 
                 return true;;
             }
@@ -648,7 +642,7 @@ namespace ConcurrentRedBlackTree
             for (var i = 0; i < 3; i++)
             {
                 node = nodesToMark[i];
-                if (!SpacingRuleIsSatisfied(node, pid, true, z)) 
+                if (!IsSpacingRuleSatisfied(node, pid, true, z)) 
                 { 
                     foreach (var n in nodesToUnMark)
                     {
@@ -661,7 +655,7 @@ namespace ConcurrentRedBlackTree
             }
 
             node = nodesToMark[3];
-            if (!SpacingRuleIsSatisfied(node, pid, false, z)) 
+            if (!IsSpacingRuleSatisfied(node, pid, false, z)) 
             { 
                 foreach (var n in nodesToUnMark)
                 {
@@ -719,7 +713,7 @@ namespace ConcurrentRedBlackTree
             {
                 if (!IsIn(node, pid) && !node.OccupyNodeAtomically())
                 {
-                    ReleaseFlags(pid, false, nodesToRelease);
+                    ReleaseFlagsAfterFailure(nodesToRelease, pid);
                     return false;
                 }
                 
@@ -728,214 +722,13 @@ namespace ConcurrentRedBlackTree
                 // verify parent is unchanged
                 if (node != prevNode.Parent)
                 {
-                    ReleaseFlags(pid, false, nodesToRelease);
+                    ReleaseFlagsAfterFailure(nodesToRelease, pid);
                     return false;
                 }
             }
             return true;
         }
 
-        private bool IsIn(RedBlackNode<TKey, TValue> node, Guid pid)
-        {
-            List<MoveUpStruct<TKey, TValue>> moveUpStructList;
-            if (moveUpStructDict.ContainsKey(pid))
-            {
-                moveUpStructList = moveUpStructDict[pid];
-            }
-            else
-            {
-                return false;
-            }
-            var moveUpStruct = moveUpStructList[moveUpStructList.Count - 1];
-
-            foreach (var n in moveUpStruct.Nodes)
-            {
-                if (node == n)
-                {
-                    return true;
-                }
-            }
-            
-            return false;
-        }
-
-        private void ReleaseFlags(
-            Guid pid, 
-            bool success, 
-            List<RedBlackNode<TKey, TValue>> nodesToRelease)
-        {
-            // new List empty ?????
-            foreach (var nd in nodesToRelease)
-            {
-                // release flag after successfully moving up
-                if(success)
-                {
-                    if(!IsIn(nd, pid))
-                    {
-                        nd.FreeNodeAtomically();
-                    }
-                    //nd is in inherited local area
-                    else
-                    {
-                        if(IsGoalNode(nodesToRelease, pid))
-                        {
-                            // release unneeded flags in moveUpStruct and discard moveUpStruct
-                            foreach (var moveUpStruct in  moveUpStructDict[pid])
-                            {
-                                foreach (var node in moveUpStruct.Nodes)
-                                {
-                                    node?.FreeNodeAtomically();
-                                }
-                            }
-                            moveUpStructDict.TryRemove(pid, out var _);
-                        }                     
-                    }
-                }
-                // release flag after failing to move up
-                else
-                {
-                    if(!IsIn(nd, pid))
-                    {
-                        nd.FreeNodeAtomically();
-                    }
-                }
-            }
-        }
-
-        private bool IsGoalNode(List<RedBlackNode<TKey, TValue>> nodesToRelease, Guid pid)
-        {
-            List<MoveUpStruct<TKey, TValue>> moveUpStructList;
-            if (moveUpStructDict.ContainsKey(pid))
-            {
-                moveUpStructList = moveUpStructDict[pid];
-            }
-            else
-            {
-                return false;
-            }
-            var moveUpStruct = moveUpStructList[moveUpStructList.Count - 1];
-            
-            // Can Gp be changed by rotation ?????????
-            var gp = moveUpStruct.Nodes[2].Parent;
-
-            // Hold a flag on gp
-            while(true)
-            {
-                gp.OccupyNodeAtomically();
-                if(gp == moveUpStruct.Nodes[2].Parent)
-                {
-                    break;
-                }
-                gp.FreeNodeAtomically();
-            }
-            
-            foreach (var node in nodesToRelease)
-            {
-                if (gp == node)
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        private bool SpacingRuleIsSatisfied(
-            RedBlackNode<TKey, TValue> t,
-            Guid pid,
-            bool isParentOccupied,
-            RedBlackNode<TKey, TValue> z = null)
-        {
-            // we already hold flags on both t and z.
-            bool isMarkerAllowed  = true;
-
-            // check that t has no marker set
-            if(z == null || z != t)
-            {
-                if (t.Marker != Guid.Empty)
-                {
-                    return false;
-                }
-            }
-
-            // check that t's parent has no flag or marker
-            RedBlackNode<TKey, TValue> tp = t.Parent;
-            
-            if(z == null || z != tp)
-            {
-                if (!isParentOccupied)
-                {
-                    if (!IsIn(tp, pid) && !tp.OccupyNodeAtomically())
-                    {
-                        return false;
-                    }
-                    // verify parent is unchanged
-                    if (tp != t.Parent)
-                    {
-                        tp.FreeNodeAtomically();
-                        return false;
-                    }
-                }
-
-                if (tp.Marker != Guid.Empty)
-                {
-                    if (!isParentOccupied)
-                    {
-                        tp.FreeNodeAtomically();
-                    }
-                    return false;
-                }
-            }
-            
-            //check that t's sibling has no flag or marker or PIDtoIgnore
-            var nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
-            var ts = (t == tp.Left ? tp.Right : tp.Left);
-
-            if (!IsIn(ts, pid) && !ts.OccupyNodeAtomically())
-            {
-                if(z == null || z != tp)
-                {
-                    if (!isParentOccupied)
-                    {
-                        nodesToRelease.Add(tp);
-                        ReleaseFlags(pid, false, nodesToRelease);
-                    }
-                }
-                return false;
-            }
-
-            Guid PIDtoIgnore;
-            bool IsTooCloseProcess = getPIDtoIgnore(pid, out PIDtoIgnore);
-            if (ts.Marker != Guid.Empty && (!IsTooCloseProcess || ts.Marker != PIDtoIgnore))
-            {
-                isMarkerAllowed = false;
-            }
-
-            // release flags on ts and tp
-            nodesToRelease.Add(ts);
-            if(z == null || z != tp)
-            {
-                if (!isParentOccupied)
-                {
-                    nodesToRelease.Add(tp);
-                }
-            }
-            ReleaseFlags(pid, false, nodesToRelease);
-
-            return isMarkerAllowed;
-        }
-
-        private bool getPIDtoIgnore(Guid pid, out Guid PIDtoIgnore)
-        {
-            PIDtoIgnore = Guid.Empty;
-            if (moveUpStructDict.ContainsKey(pid))
-            {
-                var moveUpStructList = moveUpStructDict[pid];
-                var moveUpStruct = moveUpStructList[moveUpStructList.Count - 1];
-                PIDtoIgnore = moveUpStruct.PidToIgnore;  
-                return true;
-            }
-            return  false; 
-        }
 
         private void FixUpCase1(
             RedBlackNode<TKey, TValue>[] localArea,
@@ -967,7 +760,7 @@ namespace ConcurrentRedBlackTree
                 }
             }
             intentionMarkers[3].Marker  = Guid.Empty;
-            ReleaseFlags(pid, false, intentionMarkers.ToList());
+            ReleaseFlagsAfterFailure(intentionMarkers, pid);
 
             //  release flag on node not "moved"
             localArea[4].FreeNodeAtomically();
@@ -1094,7 +887,7 @@ namespace ConcurrentRedBlackTree
             nodesToRelease.Add(oldw);
             nodesToRelease.Add(oldwlc);
             nodesToRelease.Add(oldwrc);
-            ReleaseFlags(pid, true, nodesToRelease);
+            ReleaseFlagsAfterSuccess(nodesToRelease, pid);
 
             return newx;
         }
@@ -1201,7 +994,7 @@ namespace ConcurrentRedBlackTree
                 {
                     node.Marker = Guid.Empty;
                 }
-                ReleaseFlags(pid, false, intentionMarkers.ToList());
+                ReleaseFlagsAfterFailure(intentionMarkers, pid);
 
                 // Build structure listing the nodes we hold flags on
                 // (moveUpStruct) and specifying the PID of the other
@@ -1232,12 +1025,3 @@ namespace ConcurrentRedBlackTree
         }
     }
 }
-
-
-// check if correct node is locked
-// if(z.Marker != Guid.Empty)
-// {
-//     z.FreeNodeAtomically();
-//     continue;
-//     //return false;
-// }

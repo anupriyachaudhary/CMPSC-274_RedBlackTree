@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Threading;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace ConcurrentRedBlackTree
@@ -10,9 +9,14 @@ namespace ConcurrentRedBlackTree
         where TValue : class
         where TKey : IComparable<TKey>, IComparable, IEquatable<TKey>
     {
+        private const int DummyNodesCount = 6;
+
         private RedBlackNode<TKey, TValue> _dummy;
 
         private RedBlackNode<TKey, TValue> _root;
+
+        private ConcurrentDictionary<Guid, List<MoveUpStruct<TKey, TValue>>> moveUpStructDict
+            = new ConcurrentDictionary<Guid, List<MoveUpStruct<TKey, TValue>>>();
 
         public ConcurrentRBTree()
         {
@@ -20,83 +24,11 @@ namespace ConcurrentRedBlackTree
             _dummy.Color = RedBlackNodeType.Black;
 
             var current = _dummy;
-            for(var i = 0; i < 5; i++)
+            for(var i = 0; i < (DummyNodesCount - 1); i++)
             {
                 current.Parent = new RedBlackNode<TKey, TValue>(default(TKey), default(TValue));
                 current.Parent.Color = RedBlackNodeType.Black;
                 current = current.Parent;
-            }
-        }
-
-        public RedBlackNode<TKey, TValue> GetNode(TKey key)
-        {
-            // begin at root
-            RedBlackNode<TKey, TValue> treeNode = _root;
-
-            // traverse tree until node is found
-            while (!treeNode.IsSentinel)
-            {
-                var result = key.CompareTo(treeNode.Key);
-                if (result == 0)
-                {
-                    return treeNode;
-                }
-
-                treeNode = result < 0
-                    ? treeNode.Left
-                    : treeNode.Right;
-            }
-
-            return null;
-        }
-
-        public Tuple<TKey, TValue> GetData(TKey key)
-        {
-            var node = GetNode(key);
-            return node == null ? null : new Tuple<TKey, TValue>(node.Key, node.Data);
-        }
-
-        public int MaxDepth()
-        {
-            return MaxDepthInternal(_root);
-        }
-
-        public int Count()
-        {
-            return CountInternal(_root);
-        }
-
-        private int CountInternal(RedBlackNode<TKey, TValue> treeNode)
-        {
-            if (treeNode.IsSentinel)
-            {
-                return 0;
-            }
-
-            return CountInternal(treeNode.Left) + CountInternal(treeNode.Right) + 1;
-        }
-
-        private static int MaxDepthInternal(RedBlackNode<TKey, TValue> node)
-        {
-            if (node.IsSentinel)
-            {
-                return 0;
-            }
-            else
-            {
-                /* compute the depth of each subtree */
-                var lDepth = MaxDepthInternal(node.Left);
-                var rDepth = MaxDepthInternal(node.Right);
-
-                /* use the larger one */
-                if (lDepth > rDepth)
-                {
-                    return lDepth + 1;
-                }
-                else
-                {
-                    return rDepth + 1;
-                }
             }
         }
 
@@ -123,8 +55,6 @@ namespace ConcurrentRedBlackTree
             {
                 throw new Exception();
             }
-
-            // traverse tree - find where node belongs
 
             // create new node
             var newNode = new RedBlackNode<TKey, TValue>(key, data);
@@ -175,7 +105,7 @@ namespace ConcurrentRedBlackTree
             {
                 node.Marker  = Guid.Empty;
             }
-            ReleaseFlags(pid, false, intentionMarkers.ToList());
+            ReleaseFlagsAfterFailure(intentionMarkers, pid);
 
             foreach (var node in localArea)
             {
@@ -384,7 +314,7 @@ namespace ConcurrentRedBlackTree
             nodesToRelease.Add(working[0]);
             nodesToRelease.Add(working[1]);
             nodesToRelease.Add(working[3]);
-            ReleaseFlags(pid, true, nodesToRelease);
+            ReleaseFlagsAfterSuccess(nodesToRelease, pid);
 
             working[0] = node;
             working[1] = newParent;
@@ -495,143 +425,6 @@ namespace ConcurrentRedBlackTree
             }
 
             _root.Color = RedBlackNodeType.Black;
-        }
-       
-        private void RotateRight(RedBlackNode<TKey, TValue> rotateNode)
-        {
-            var workNode = rotateNode.Left;
-
-            rotateNode.Left = workNode.Right;
-
-            if (!workNode.Right.IsSentinel)
-            {
-                workNode.Right.Parent = rotateNode;
-            }
-
-            if (!workNode.IsSentinel)
-            {
-                workNode.Parent = rotateNode.Parent;
-            }
-
-            if (rotateNode.Parent != _dummy)
-            {
-                if (rotateNode == rotateNode.Parent.Right)
-                {
-                    rotateNode.Parent.Right = workNode;
-                }
-                else
-                {
-                    rotateNode.Parent.Left = workNode;
-                }
-            }
-            else
-            {
-                workNode.Parent = _dummy;
-                _dummy.Left = workNode;
-                _root = workNode;
-            }
-
-            workNode.Right = rotateNode;
-            if (!rotateNode.IsSentinel)
-            {
-                rotateNode.Parent = workNode;
-            }
-        }
-
-        private void RotateLeft(RedBlackNode<TKey, TValue> rotateNode)
-        {
-            var workNode = rotateNode.Right;
-
-            rotateNode.Right = workNode.Left;
-            if (!workNode.Left.IsSentinel)
-            {
-                workNode.Left.Parent = rotateNode;
-            }
-
-            if (!workNode.IsSentinel)
-            {
-                workNode.Parent = rotateNode.Parent;
-            }
-
-            if (rotateNode.Parent != _dummy)
-            {
-                if (rotateNode == rotateNode.Parent.Left)
-                {
-                    rotateNode.Parent.Left = workNode;
-                }
-                else
-                {
-                    rotateNode.Parent.Right = workNode;
-                }
-            }
-            else
-            {
-                workNode.Parent = _dummy;
-                _dummy.Left = workNode;
-                _root = workNode;
-            }
-
-            workNode.Left = rotateNode;
-            if (!rotateNode.IsSentinel)
-            {
-                rotateNode.Parent = workNode;
-            }
-        }
-    
-        public bool isValidRBT(TKey nodesMaxKeyValue)
-        {
-            return isValidRBT(_root, default(TKey), nodesMaxKeyValue);
-        }
-
-        private bool isValidRBT(RedBlackNode<TKey, TValue> node, TKey low, TKey high)
-        {
-            if(node.IsSentinel)
-                return true;
-
-            bool isLow = false;
-            bool isHigh = false;
-            if(node.Key.CompareTo(low) > 0)
-            {
-                isLow = true;
-            }
-            if(node.Key.CompareTo(high) < 0)
-            {
-                isHigh = true;
-            }
-            if(isLow == false || isHigh == false)
-            {
-                Console.WriteLine($"RBT is invalid at {node.Key}");
-            }
-            return isLow && isHigh
-                    && isValidRBT(node.Left, low, node.Key) 
-                    && isValidRBT(node.Right, node.Key, high);
-        }
-
-        public void printLevelOrder()
-        {
-            int height = MaxDepth();
-            int i; 
-            for (i=1; i <= height; i++) 
-            { 
-                printGivenLevel(_root, i); 
-                Console.WriteLine("\n"); 
-            }
-        }
-
-        private void printGivenLevel(RedBlackNode<TKey, TValue> node, int level) 
-        { 
-            if (node.IsSentinel)
-            {
-                Console.Write("null ");
-                return;
-            }
-            if (level == 1) 
-                Console.Write($"{node.Key} "); 
-            else if (level > 1) 
-            { 
-                printGivenLevel(node.Left, level-1); 
-                printGivenLevel(node.Right, level-1); 
-            } 
         }
     }
 }
