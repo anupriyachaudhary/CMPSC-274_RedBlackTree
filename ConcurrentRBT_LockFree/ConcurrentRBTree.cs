@@ -158,6 +158,10 @@ namespace ConcurrentRedBlackTree
             }
             foreach (var node in intentionMarkers)
             {
+                if(node.Marker != pid)
+                {
+                    Console.WriteLine($"{node.Marker}, {pid}, {Thread.CurrentThread.Name}");
+                }
                 node.Marker  = Guid.Empty;
             }
             ReleaseFlags(pid, false, intentionMarkers.ToList());
@@ -385,6 +389,7 @@ namespace ConcurrentRedBlackTree
             if (localArea[1].Marker != Guid.Empty 
                 && localArea[0].Marker == localArea[1].Marker)
             {
+                Console.WriteLine("FixUpForInsertCase3");
                 localArea[2].Marker = localArea[0].Marker;
                 localArea[1].Marker = Guid.Empty; 
             }
@@ -394,6 +399,7 @@ namespace ConcurrentRedBlackTree
                 && parentOtherChild.Marker == localArea[1].Marker
                 && localArea[2].Marker == localArea[1].Marker)
             {
+                Console.WriteLine("FixUpForInsertCase3");
                 localArea[2].Marker = Guid.Empty;
                 localArea[0].Marker = localArea[1].Marker; 
             }
@@ -416,6 +422,7 @@ namespace ConcurrentRedBlackTree
                 && movedChild.Marker == localArea[1].Marker
                 && localArea[2].Marker == Guid.Empty)
             {
+                Console.WriteLine("FixUpForInsertCase4");
                 localArea[2].Marker = localArea[1].Marker;
                 localArea[1].Marker = Guid.Empty; 
             }

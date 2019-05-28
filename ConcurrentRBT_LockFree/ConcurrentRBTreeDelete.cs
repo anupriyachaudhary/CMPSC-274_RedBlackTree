@@ -180,6 +180,10 @@ namespace ConcurrentRedBlackTree
                 }
                 foreach (var node in intentionMarkers)
                 {
+                    if(node.Marker != pid)
+                    {
+                        Console.WriteLine($"{node.Marker}, {pid}");
+                    }
                     node.Marker  = Guid.Empty;
                 }
                 ReleaseFlags(pid, false, intentionMarkers.ToList());
@@ -491,6 +495,10 @@ namespace ConcurrentRedBlackTree
                 }
                 foreach(var node in intentionMarkers)
                 {
+                    if(node.Marker != pid)
+                    {
+                        Console.WriteLine($"{node.Marker}, {pid}");
+                    }
                     node.Marker = Guid.Empty;
                 }
                 ReleaseFlags(pid, false, intentionMarkers.ToList());
