@@ -28,6 +28,7 @@ namespace ConcurrentRedBlackTree
             const long initInsertNodesPerThread = 1000;
             const long maxKeyValue = initInsertNodesPerThread * initThreads * 3;
 
+            const int numOfThreads = 4;
             const int searchWorkload = 8;
             const int insertWorkload = 2;
 
@@ -40,7 +41,7 @@ namespace ConcurrentRedBlackTree
             
             //ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThreadForInsert, totalNodesToInsert, nodesMaxKeyValue);
 
-            ConcurrentMixedWorkload(rbTree, searchWorkload, insertWorkload, initThreads, initInsertNodesPerThread, maxKeyValue);
+            ConcurrentMixedWorkload(rbTree, numOfThreads, searchWorkload, insertWorkload, initThreads, initInsertNodesPerThread, maxKeyValue);
 
             //ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
 
@@ -48,13 +49,17 @@ namespace ConcurrentRedBlackTree
             
         }
 
-        public static void ConcurrentMixedWorkload(ConcurrentRBTree<long, Data> rbTree, int searchWorkload, 
-                int insertWorkload, int initThreads, long initInsertNodesPerThread, long maxKeyValue)
+        public static void ConcurrentMixedWorkload(ConcurrentRBTree<long, Data> rbTree, int numOfThreads, 
+            int searchWorkload, int insertWorkload, int initThreads, long initInsertNodesPerThread, long maxKeyValue)
         {
             long initTreeSize = initThreads * initInsertNodesPerThread;
             ConcurrentInsertTest(rbTree, initThreads, initInsertNodesPerThread, initTreeSize, maxKeyValue);
 
             long totalNodesToInsert = initTreeSize;
+            long nodesPerThreadForInsert = totalNodesToInsert/numOfThreads;
+
+            long totalNodesToSearch = initTreeSize * (searchWorkload / insertWorkload);
+            long searchOperationsPerThread = totalNodesToSearch/numOfThreads;
 
             // generate valid insert items
             var count = 0;
@@ -87,16 +92,14 @@ namespace ConcurrentRedBlackTree
             }
             var values = keysToInsert.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
 
-
             
-            int numOfThreadsForInsert = insertWorkload + 1;
-            var threadsForInsert = new Thread[numOfThreadsForInsert];
-            long nodesPerThreadForInsert = totalNodesToInsert/numOfThreadsForInsert;
 
-            for (var i = 0; i < numOfThreadsForInsert; i++)
+
+            var threads = new Thread[numOfThreads];
+            for (var i = 0; i < numOfThreads; i++)
             {
                 var iLocal = i;
-                threadsForInsert[i] = new Thread(() =>
+                threads[i] = new Thread(() =>
                 {
                     var start = iLocal * nodesPerThreadForInsert;
                     var end = start + nodesPerThreadForInsert - 1;
@@ -104,60 +107,41 @@ namespace ConcurrentRedBlackTree
                     {
                         rbTree.Add(values[j].Item1, values[j].Item2);
                     }
-                });
 
-            }
-
-            int numOfThreadsForSearch = searchWorkload + 1;
-            var threadsForSearch = new Thread[numOfThreadsForSearch];
-            long totalNodesToSearch = initTreeSize * (searchWorkload / insertWorkload);
-            long searchOperationsPerThread = totalNodesToSearch/numOfThreadsForSearch;
-
-            for (var i = 0; i < numOfThreadsForSearch; i++)
-            {
-                threadsForSearch[i] = new Thread(() =>
-                {
                     rand = new Random();
-                    for (var j = 0; j < searchOperationsPerThread; j++)
+                    for (var k = 0; k < searchOperationsPerThread; k++)
                     {
                         var target = 1 + (long) (rand.NextDouble() * maxKeyValue);
                         _ = rbTree.GetData(target);
                     }
                 });
+
             }
 
 
             Console.WriteLine("************* Mixed Workload Test ***************");
             Console.WriteLine();
 
-            Console.WriteLine($"Total search workload: {searchWorkload*10} %");
-            Console.WriteLine($"Total nodes to delete: {insertWorkload*10} %");
+            Console.WriteLine($"Number of threads: {numOfThreads}");
+            Console.WriteLine($"Total search workload: {searchWorkload*10}%");
+            Console.WriteLine($"Total nodes to delete: {insertWorkload*10}%");
             Console.WriteLine($"Total search operations: {totalNodesToSearch}");
             Console.WriteLine($"Total nodes inserted: {totalNodesToInsert}");
+            Console.WriteLine($"Total operations: {totalNodesToSearch+totalNodesToInsert}");
             Console.WriteLine();
 
             // starting inserts
             var watch = new Stopwatch();
             watch.Start();
 
-            for (var i = 0; i < numOfThreadsForInsert; i++)
+            for (var i = 0; i < numOfThreads; i++)
             {
-                threadsForInsert[i].Start();
+                threads[i].Start();
             }
 
-            for (var i = 0; i < numOfThreadsForSearch; i++)
+            for (var i = 0; i < numOfThreads; i++)
             {
-                threadsForSearch[i].Start();
-            }
-
-            for (var i = 0; i < numOfThreadsForInsert; i++)
-            {
-                threadsForInsert[i].Join();
-            }
-
-            for (var i = 0; i < numOfThreadsForSearch; i++)
-            {
-                threadsForSearch[i].Join();
+                threads[i].Join();
             }
 
             watch.Stop();
