@@ -15,6 +15,14 @@ namespace ConcurrentRedBlackTree
     {
         static void Main(string[] args)
         {
+            // Variables for search operation
+            // const int numOfThreads = 12;
+            // const int searchOperationsPerThread = 10000;
+        
+            // const int nodesPerThreadForInsert = searchOperationsPerThread * 2;
+            // const long totalNodesToInsert = numOfThreads * nodesPerThreadForInsert;
+            // const long nodesMaxKeyValue = totalNodesToInsert * 10;
+
             // Variables for mixed workload 
             const int initThreads = 12;
             const long initInsertNodesPerThread = 1000;
@@ -48,7 +56,7 @@ namespace ConcurrentRedBlackTree
 
             long totalNodesToInsert = initTreeSize;
 
-            // generate valid deletable items
+            // generate valid insert items
             var count = 0;
             var keysToInsert = new HashSet<long>();
             var rand = new Random();
@@ -101,7 +109,7 @@ namespace ConcurrentRedBlackTree
             }
 
             int numOfThreadsForSearch = searchWorkload + 1;
-            var threadsForSearch = new Thread[numOfThreadsForInsert];
+            var threadsForSearch = new Thread[numOfThreadsForSearch];
             long totalNodesToSearch = initTreeSize * (searchWorkload / insertWorkload);
             long searchOperationsPerThread = totalNodesToSearch/numOfThreadsForSearch;
 
@@ -172,7 +180,7 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine();
 
             Console.WriteLine($"Total threads: {numOfThreads}");
-            Console.WriteLine($"We will perform {searchOperationsPerThread} search operations on each thread");
+            Console.WriteLine($"We will perform {searchOperationsPerThread*numOfThreads} search operations on each thread");
             Console.WriteLine();
 
             var threads = new Thread[numOfThreads];
