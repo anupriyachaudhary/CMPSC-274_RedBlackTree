@@ -48,6 +48,94 @@ namespace ConcurrentRedBlackTree
             // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
 
+        public static void ConcurrentSearchTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
+            int nodesPerThread, int totalNodesToSearch, long nodesMaxKeyValue)
+        {
+            Console.WriteLine("************* Search Test ***************");
+            Console.WriteLine();
+
+            Console.WriteLine($"We will perform {totalNodesToSearch} serach operations");
+            Console.WriteLine();
+
+            // generate valid deletable items
+            var count = 0;
+            var searchItems = new HashSet<long>();
+            var rand = new Random();
+
+            while (true)
+            {
+                long target;
+                while (true)
+                {
+                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    if (!searchItems.Contains(target))
+                    {
+                        break;
+                    }
+                }
+                var data = rbTree.GetData(target);
+
+                if (data != null)
+                {
+                    searchItems.Add(data.Item1);
+                    count++;
+                }
+
+                if (count == totalNodesToSearch)
+                {
+                    break;
+                }
+            }
+            var keysToSearch = searchItems.ToArray();
+            
+            var threads = new Thread[numOfThreads];
+
+            for (var i = 0; i < threads.Length; i++)
+            {
+                var iLocal = i;
+                threads[i] = new Thread(() =>
+                {
+                    var start = iLocal * nodesPerThread;
+                    var end = start + nodesPerThread - 1;
+                    for (var j = start; j <= end; j++)
+                    {
+                        rbTree.Search(keysToSearch[j]);
+                    }
+                });
+                threads[i].Name = i.ToString();
+            }
+
+            Console.WriteLine($"Total search operations: {totalNodesToSearch}");
+            Console.WriteLine($"Total threads: {numOfThreads}");
+            Console.WriteLine($"Total search operations per thread: {nodesPerThread}");
+            Console.WriteLine();
+
+            // starting deletes
+            var watch = new Stopwatch();
+            watch.Start();
+
+            foreach (var thread in threads)
+            {
+                thread.Start();
+            }
+
+            foreach (var thread in threads)
+            {
+                thread.Join();
+            }
+
+            watch.Stop();
+
+            if (rbTree.isValidRBT(nodesMaxKeyValue + 1) == false)
+            {
+                Console.WriteLine($"After delete, RBT is invalid");
+            }
+
+            Console.WriteLine($"Total time spent in search operations: {watch.ElapsedMilliseconds} ms");
+            Console.WriteLine();
+            Console.WriteLine();
+        }
+
         public static void ConcurrentDeleteTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
             int nodesPerThread, int totalNodesToDelete, long nodesMaxKeyValue)
         {
