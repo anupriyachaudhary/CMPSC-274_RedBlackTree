@@ -124,7 +124,7 @@ namespace ConcurrentRedBlackTree
 
             Console.WriteLine($"Number of threads: {numOfThreads}");
             Console.WriteLine($"Total search workload: {searchWorkload*10}%");
-            Console.WriteLine($"Total nodes to delete: {insertWorkload*10}%");
+            Console.WriteLine($"Total insert workload: {insertWorkload*10}%");
             Console.WriteLine($"Total search operations: {totalNodesToSearch}");
             Console.WriteLine($"Total nodes inserted: {totalNodesToInsert}");
             Console.WriteLine($"Total operations: {totalNodesToSearch+totalNodesToInsert}");

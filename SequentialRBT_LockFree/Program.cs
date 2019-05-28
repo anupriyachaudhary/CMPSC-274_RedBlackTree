@@ -16,9 +16,13 @@ namespace SequentialRBTree
         static void Main(string[] args)
         {
             // read command line parameters
-            const int totalNodesToDelete = 1600000;
-            const int totalNodesToInsert = totalNodesToDelete * 4;
-            const int nodesMaxKeyValue = totalNodesToInsert * 10;
+            const int initNodes = 384000;
+
+            const int searchWorkload = 9;
+            const int insertWorkload = 1;
+            const int totalNodesToInsert = initNodes;
+            const int totalSearchOpertaions = totalNodesToInsert * (searchWorkload/insertWorkload);
+            const int nodesMaxKeyValue = totalNodesToInsert * 3;
             //const int searchOperations = 1000000;
 
             var rbTree = new SequentialRBTree<long, Data>();
@@ -28,13 +32,85 @@ namespace SequentialRBTree
             Console.WriteLine();
             Console.WriteLine();
 
-            InsertTest(rbTree, totalNodesToInsert, nodesMaxKeyValue);
+            Console.WriteLine($"Total search workload: {searchWorkload*10}%");
+            Console.WriteLine($"Total insert workload: {insertWorkload*10}%");
+
+            InsertTest(rbTree, initNodes, nodesMaxKeyValue);
+
+            MixedTest(rbTree, totalNodesToInsert, totalSearchOpertaions, nodesMaxKeyValue);
 
             //SearchTest(rbTree, searchOperations, nodesMaxKeyValue);
 
-            DeleteTest(rbTree, totalNodesToDelete, nodesMaxKeyValue);
+            //DeleteTest(rbTree, totalNodesToDelete, nodesMaxKeyValue);
         }
 
+        public static void MixedTest(SequentialRBTree<long, Data> rbTree, int totalNodesToInsert, int totalSearchOpertaions,int nodesMaxKeyValue)
+        {
+            // generate valid insert items
+            var count = 0;
+            var keysToInsert = new HashSet<long>();
+            var rand = new Random();
+
+            while (true)
+            {
+                long target;
+                while (true)
+                {
+                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    if (!keysToInsert.Contains(target))
+                    {
+                        break;
+                    }
+                }
+                var data = rbTree.GetData(target);
+
+                if (data == null)
+                {
+                    keysToInsert.Add(target);
+                    count++;
+                }
+
+                if (count == totalNodesToInsert)
+                {
+                    break;
+                }
+            }
+            var values = keysToInsert.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
+
+            Console.WriteLine("************* Test ***************");
+            Console.WriteLine();
+
+            Console.WriteLine($"Total search operations: {totalSearchOpertaions}");
+            Console.WriteLine($"Total nodes inserted: {totalNodesToInsert}");
+            Console.WriteLine($"Total operations: {totalSearchOpertaions+totalNodesToInsert}");
+            Console.WriteLine();
+
+            // starting inserts
+            var watch = new Stopwatch();
+            watch.Start();
+
+            foreach (var value in values)
+            {
+                rbTree.Add(value.Item1, value.Item2);
+            }
+
+            rand = new Random();
+            for (var i = 0; i < totalSearchOpertaions; i++)
+            {
+                var target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+
+                _ = rbTree.GetData(target);
+            }
+
+            watch.Stop();
+
+            Console.WriteLine($"Total time spent in insertion: {watch.ElapsedMilliseconds} ms");
+            Console.WriteLine();
+
+            return;
+        }
+        
+        
         public static void InsertTest(SequentialRBTree<long, Data> rbTree, int totalNodesToInsert, int nodesMaxKeyValue)
         {
             // generate input data
