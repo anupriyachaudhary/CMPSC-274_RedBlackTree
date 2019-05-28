@@ -568,6 +568,14 @@ namespace ConcurrentRedBlackTree
                 markerPositions[0].Marker = Guid.Empty;
                 markerPositions[1].Marker = Guid.Empty;
 
+                var newGrandParent = start.Parent.Parent;
+
+                // if(newGrandParent.Parent.Marker != pid || newGrandParent.Parent.Parent.Marker != pid ||
+                //     newGrandParent.Parent.Parent.Parent.Marker != pid || newGrandParent.Parent.Parent.Parent.Parent.Marker != pid)
+                // {
+                //     Console.WriteLine($"ll {newGrandParent.Parent.Marker}, {pid}");
+                // }
+
                 ReleaseFlagsAfterSuccess(nodesToRelease, pid);
 
                 return true; ;

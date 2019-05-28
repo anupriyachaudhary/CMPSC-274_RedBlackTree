@@ -89,10 +89,10 @@ namespace ConcurrentRedBlackTree
             }
             foreach (var node in intentionMarkers)
             {
-                if(node.Marker != pid)
-                {
-                    Console.WriteLine($"{node.Marker}, {pid}, {Thread.CurrentThread.Name}");
-                }
+                // if(node.Marker != pid)
+                // {
+                //     Console.WriteLine($"{node.Marker}, {pid}, {Thread.CurrentThread.Name}");
+                // }
                 node.Marker  = Guid.Empty;
             }
             ReleaseFlagsAfterFailure(intentionMarkers, pid);
@@ -403,7 +403,6 @@ namespace ConcurrentRedBlackTree
                 }
                 else
                 {
-                    Console.WriteLine($"{pid}, {Thread.CurrentThread.Name}");
                     break;
                 }
             }
@@ -431,6 +430,15 @@ namespace ConcurrentRedBlackTree
             {
                 localArea[2].Marker = localArea[0].Marker;
                 localArea[1].Marker = Guid.Empty; 
+            }
+
+            var parentOtherChild = (localArea[0] == localArea[1].Right) ? localArea[1].Left : localArea[1].Right;
+            if (localArea[1].Marker != Guid.Empty 
+                && parentOtherChild.Marker == localArea[1].Marker
+                && localArea[2].Marker == localArea[1].Marker)
+            {
+                localArea[2].Marker = Guid.Empty;
+                localArea[0].Marker = localArea[1].Marker; 
             }
 
             // Correct Local area
