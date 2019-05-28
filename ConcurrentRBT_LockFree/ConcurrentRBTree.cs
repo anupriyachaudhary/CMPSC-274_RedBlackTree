@@ -26,6 +26,93 @@ namespace ConcurrentRedBlackTree
             }
         }
 
+        public RedBlackNode<TKey, TValue> Search(TKey key)
+        {
+            while(true)
+            {
+                if(_root == null)
+                {
+                    break;
+                }
+
+                // begin at root
+                RedBlackNode<TKey, TValue> workNode = _root, nextNode = _root;
+
+                while(true)
+                {
+                    if(!workNode.OccupyNodeAtomically())
+                    {
+                        continue;
+                    }
+
+                    int result = key.CompareTo(workNode.Key);
+                    if (result == 0)
+                    {
+                        return workNode;
+                    }
+
+                    if (result > 0)
+                    {
+                        nextNode = workNode.Right;
+                    }
+                    else
+                    {
+                        nextNode = workNode.Left;
+                    }
+
+                    if(nextNode.IsSentinel)
+                    {
+                        break;
+                    }
+
+                    if(!nextNode.OccupyNodeAtomically())
+                    {
+                        workNode.FreeNodeAtomically();
+                        break;
+                    }
+
+                    if (nextNode.Parent != workNode)
+                    {
+                        workNode.FreeNodeAtomically();
+                        nextNode.FreeNodeAtomically();
+                        continue;
+                    }
+
+                    workNode.FreeNodeAtomically();
+                    workNode = nextNode;
+                }
+
+                if(nextNode.IsSentinel)
+                {
+                    break;
+                }
+            }
+
+            return null;
+        }
+
+        public RedBlackNode<TKey, TValue> GetNode(TKey key)
+        {
+            // begin at root
+            RedBlackNode<TKey, TValue> treeNode = _root;
+
+            // traverse tree until node is found
+            while (!treeNode.IsSentinel)
+            {
+                var result = key.CompareTo(treeNode.Key);
+                if (result == 0)
+                {
+                    return treeNode;
+                }
+
+                treeNode = result < 0
+                    ? treeNode.Left
+                    : treeNode.Right;
+            }
+
+            return null;
+        }
+
         public RedBlackNode<TKey, TValue> GetNode(TKey key)
         {
             // begin at root
