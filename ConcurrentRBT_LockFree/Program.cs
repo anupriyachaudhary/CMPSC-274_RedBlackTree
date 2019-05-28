@@ -85,7 +85,7 @@ namespace ConcurrentRedBlackTree
             var threadsForInsert = new Thread[numOfThreadsForInsert];
             long nodesPerThreadForInsert = totalNodesToInsert/numOfThreadsForInsert;
 
-            for (var i = 0; i < threadsForInsert.Length; i++)
+            for (var i = 0; i < numOfThreadsForInsert; i++)
             {
                 var iLocal = i;
                 threadsForInsert[i] = new Thread(() =>
@@ -105,7 +105,7 @@ namespace ConcurrentRedBlackTree
             long totalNodesToSearch = initTreeSize * (searchWorkload / insertWorkload);
             long searchOperationsPerThread = totalNodesToSearch/numOfThreadsForSearch;
 
-            for (var i = 0; i < threadsForSearch.Length; i++)
+            for (var i = 0; i < numOfThreadsForSearch; i++)
             {
                 threadsForSearch[i] = new Thread(() =>
                 {
