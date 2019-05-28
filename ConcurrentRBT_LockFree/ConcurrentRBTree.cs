@@ -82,7 +82,7 @@ namespace ConcurrentRedBlackTree
 
             while(true)
             {
-                if(GetFlagsForMarkers(top, pid, intentionMarkers, localArea[0]))
+                if(GetFlagsForMarkers(top, pid, intentionMarkers, null))
                 {
                     break;
                 }
@@ -261,58 +261,6 @@ namespace ConcurrentRedBlackTree
             return true;
         }
 
-        private void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] localArea, Guid pid)
-        {
-            RedBlackNode<TKey, TValue> newParent = node.Parent, newGrandParent = node.Parent.Parent, newUncle = null;
-
-            while (true)
-            {
-                if(GetFlagsAndMarkersAbove(node, localArea, pid, 2))
-                {
-                    break;
-                }
-            }
-
-            while(true)
-            {
-                newUncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
-
-                if (!IsIn(newUncle, pid))
-                {
-                    if(newUncle.OccupyNodeAtomically())
-                    {
-                        //check if uncle is not changed
-                        var temp_uncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
-                        if (newUncle != temp_uncle)
-                        {
-                            newUncle.FreeNodeAtomically();
-                        }
-                        else
-                        {
-                            break;
-                        }
-                    }
-                }
-                else
-                {
-                    break;
-                }
-            }
-
-            // release flag on old local area
-            List<RedBlackNode<TKey, TValue>> nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
-            nodesToRelease.Add(localArea[0]);
-            nodesToRelease.Add(localArea[1]);
-            nodesToRelease.Add(localArea[3]);
-            ReleaseFlagsAfterSuccess(nodesToRelease, pid);
-
-            localArea[0] = node;
-            localArea[1] = newParent;
-            localArea[2] = newGrandParent;
-            localArea[3] = newUncle;
-        }
-
-
         private void BalanceTreeAfterInsert(RedBlackNode<TKey, TValue> insertedNode,
             RedBlackNode<TKey, TValue>[] localArea, Guid pid)
         {
@@ -419,6 +367,58 @@ namespace ConcurrentRedBlackTree
             }
 
             _root.Color = RedBlackNodeType.Black;
+        }
+
+        private void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] localArea, Guid pid)
+        {
+            RedBlackNode<TKey, TValue> newParent = node.Parent, newGrandParent = node.Parent.Parent, newUncle = null;
+
+            while (true)
+            {
+                if(GetFlagsAndMarkersAbove(node, localArea, pid, 2))
+                {
+                    break;
+                }
+            }
+
+            while(true)
+            {
+                newUncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
+
+                if (!IsIn(newUncle, pid))
+                {
+                    if(newUncle.OccupyNodeAtomically())
+                    {
+                        //check if uncle is not changed
+                        var temp_uncle = newGrandParent.Left == node.Parent ? newGrandParent.Right : newGrandParent.Left;
+                        if (newUncle != temp_uncle)
+                        {
+                            newUncle.FreeNodeAtomically();
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"{pid}, {Thread.CurrentThread.Name}");
+                    break;
+                }
+            }
+
+            // release flag on old local area
+            List<RedBlackNode<TKey, TValue>> nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
+            nodesToRelease.Add(localArea[0]);
+            nodesToRelease.Add(localArea[1]);
+            nodesToRelease.Add(localArea[3]);
+            ReleaseFlagsAfterSuccess(nodesToRelease, pid);
+
+            localArea[0] = node;
+            localArea[1] = newParent;
+            localArea[2] = newGrandParent;
+            localArea[3] = newUncle;
         }
 
         private void FixUpForInsertCase3(
