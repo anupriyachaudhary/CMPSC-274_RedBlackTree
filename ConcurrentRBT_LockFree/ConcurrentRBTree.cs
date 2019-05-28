@@ -38,16 +38,17 @@ namespace ConcurrentRedBlackTree
                 // begin at root
                 RedBlackNode<TKey, TValue> workNode = _root, nextNode = _root;
 
+                if(!workNode.OccupyNodeAtomically())
+                {
+                    continue;
+                }
+
                 while(true)
                 {
-                    if(!workNode.OccupyNodeAtomically())
-                    {
-                        continue;
-                    }
-
                     int result = key.CompareTo(workNode.Key);
                     if (result == 0)
                     {
+                        workNode.FreeNodeAtomically();
                         return workNode;
                     }
 
@@ -62,6 +63,7 @@ namespace ConcurrentRedBlackTree
 
                     if(nextNode.IsSentinel)
                     {
+                        workNode.FreeNodeAtomically();
                         break;
                     }
 
@@ -86,28 +88,6 @@ namespace ConcurrentRedBlackTree
                 {
                     break;
                 }
-            }
-
-            return null;
-        }
-
-        public RedBlackNode<TKey, TValue> GetNode(TKey key)
-        {
-            // begin at root
-            RedBlackNode<TKey, TValue> treeNode = _root;
-
-            // traverse tree until node is found
-            while (!treeNode.IsSentinel)
-            {
-                var result = key.CompareTo(treeNode.Key);
-                if (result == 0)
-                {
-                    return treeNode;
-                }
-
-                treeNode = result < 0
-                    ? treeNode.Left
-                    : treeNode.Right;
             }
 
             return null;

@@ -22,16 +22,24 @@ namespace ConcurrentRedBlackTree
             // const long nodesMaxKeyValue = 10000000;
 
             // Variables for delete
-            const int numOfThreads = 64;
-            const int nodesPerThread = 100;
-            const int totalNodesToDelete = numOfThreads * nodesPerThread;
-            const long totalNodesToInsert = totalNodesToDelete * 4;
-            const long nodesMaxKeyValue = totalNodesToInsert * 10;
+            // const int numOfThreads = 64;
+            // const int nodesPerThread = 100;
+            // const int totalNodesToDelete = numOfThreads * nodesPerThread;
+            // const long totalNodesToInsert = totalNodesToDelete * 4;
+            // const long nodesMaxKeyValue = totalNodesToInsert * 10;
             
             // // Variables for search operation
             // const int numOfThreads = 12;
             // const int searchOperationsPerThread = 10000;
             // const long nodesMaxKeyValue = 10000000;
+
+            // Variables for search operation
+            const int numOfThreads = 1;
+            const int nodesPerThreadForSearch = 10000;
+            const int totalNodesToSearch = numOfThreads * nodesPerThreadForSearch;
+            const int nodesPerThreadForInsert = nodesPerThreadForSearch * 2;
+            const long totalNodesToInsert = numOfThreads * nodesPerThreadForInsert;
+            const long nodesMaxKeyValue = totalNodesToInsert * 10;
 
             var rbTree = new ConcurrentRBTree<long, Data>();
 
@@ -42,10 +50,13 @@ namespace ConcurrentRedBlackTree
 
             //SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
             
-            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread * 4, totalNodesToInsert, nodesMaxKeyValue);
-            ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
+            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThreadForInsert, totalNodesToInsert, nodesMaxKeyValue);
+
+            ConcurrentSearchTest(rbTree, numOfThreads, nodesPerThreadForSearch, totalNodesToSearch, nodesMaxKeyValue);
+
+            //ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
             
-            // ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
+            //ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
         }
 
         public static void ConcurrentSearchTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
@@ -54,7 +65,7 @@ namespace ConcurrentRedBlackTree
             Console.WriteLine("************* Search Test ***************");
             Console.WriteLine();
 
-            Console.WriteLine($"We will perform {totalNodesToSearch} serach operations");
+            Console.WriteLine($"We will perform {totalNodesToSearch} search operations");
             Console.WriteLine();
 
             // generate valid deletable items
@@ -126,12 +137,56 @@ namespace ConcurrentRedBlackTree
 
             watch.Stop();
 
-            if (rbTree.isValidRBT(nodesMaxKeyValue + 1) == false)
+            Console.WriteLine($"Total time spent in search operations: {watch.ElapsedMilliseconds} ms");
+            Console.WriteLine();
+            Console.WriteLine();
+        }
+
+        public static void SearchTest(ConcurrentRBTree<long, Data> rbTree, int totalNodesToSearch, long nodesMaxKeyValue)
+        {
+            Console.WriteLine("************* Search Test ***************");
+            Console.WriteLine();
+
+            Console.WriteLine($"We will perform {totalNodesToSearch} search operations");
+            Console.WriteLine();
+
+            // generate valid deletable items
+            var count = 0;
+            var searchItems = new HashSet<long>();
+            var rand = new Random();
+
+            while (true)
             {
-                Console.WriteLine($"After delete, RBT is invalid");
+                long target;
+                while (true)
+                {
+                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    if (!searchItems.Contains(target))
+                    {
+                        break;
+                    }
+                }
+                var data = rbTree.GetData(target);
+
+                if (data != null)
+                {
+                    searchItems.Add(data.Item1);
+                    count++;
+                }
+
+                if (count == totalNodesToSearch)
+                {
+                    break;
+                }
+            }
+            var keysToSearch = searchItems.ToArray();
+
+            for (var i = 0; i < totalNodesToSearch; i++)
+            {
+                rbTree.Search(keysToSearch[i]);
             }
 
-            Console.WriteLine($"Total time spent in search operations: {watch.ElapsedMilliseconds} ms");
+            Console.WriteLine($"Total search operations: {totalNodesToSearch}");
             Console.WriteLine();
             Console.WriteLine();
         }
