@@ -16,10 +16,10 @@ namespace ConcurrentRedBlackTree
         static void Main(string[] args)
         {
             // // variables for insert
-            const int numOfThreads = 1;
-            const long nodesPerThread = 10000000;
-            const long totalNodesToInsert = numOfThreads * nodesPerThread;
-            const long nodesMaxKeyValue = 1000000000;
+            // const int numOfThreads = 1;
+            // const long nodesPerThread = 10000000;
+            // const long totalNodesToInsert = numOfThreads * nodesPerThread;
+            // const long nodesMaxKeyValue = 1000000000;
 
             // Variables for delete
             // const int numOfThreads = 6;
@@ -36,10 +36,13 @@ namespace ConcurrentRedBlackTree
             //const long totalNodesInTree = totalNodesToInsert * 4;
             //const long nodesMaxKeyValue = totalNodesInTree * 10;
 
-            // // Variables for search operation
-            // const int numOfThreads = 12;
-            // const int searchOperationsPerThread = 10000;
-            // const long nodesMaxKeyValue = 10000000;
+            // Variables for search operation
+            const int numOfThreads = 6;
+            const int nodesPerThreadForSearch = 1000;
+            const int totalNodesToSearch = numOfThreads * nodesPerThreadForSearch;
+            const int nodesPerThreadForInsert = nodesPerThreadForSearch * 2;
+            const long totalNodesToInsert = numOfThreads * nodesPerThreadForInsert;
+            const long nodesMaxKeyValue = totalNodesToInsert * 10;
 
             var rbTree = new ConcurrentRBTree<long, Data>();
 
@@ -50,158 +53,15 @@ namespace ConcurrentRedBlackTree
 
             //SimpleInsertDeleteTest(rbTree, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
             
-            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThread, totalNodesToInsert, nodesMaxKeyValue, true);
+            ConcurrentInsertTest(rbTree, numOfThreads, nodesPerThreadForInsert, totalNodesToInsert, nodesMaxKeyValue, true);
+
+            ConcurrentSearchTest(rbTree, numOfThreads, nodesPerThreadForSearch, totalNodesToSearch, nodesMaxKeyValue);
 
             //ConcurrentDeleteTest(rbTree, numOfThreads, nodesPerThread, totalNodesToDelete, nodesMaxKeyValue);
 
             //ConcurrentInsertDeleteTest(rbTree, totalNodesInTree, numOfThreads, nodesPerThread, totalNodesToDelete, totalNodesToInsert, nodesMaxKeyValue);
             
             //ConcurrentSearchTest(rbTree, numOfThreads, searchOperationsPerThread, nodesMaxKeyValue);
-        }
-
-        public static void ConcurrentInsertDeleteTest(ConcurrentRBTree<long, Data> rbTree, long totalNodesInTree,int numOfThreads, 
-        int nodesPerThread, long totalNodesToDelete, long totalNodesToInsert,long nodesMaxKeyValue)
-        {
-            Console.WriteLine("************* Create Tree ***************");
-            Console.WriteLine();
-
-            ConcurrentInsertTest(rbTree, 12, totalNodesInTree / 12, totalNodesInTree, nodesMaxKeyValue, false);
-
-            Console.WriteLine($"Node count of tree: {(rbTree.Count())}");
-            Console.WriteLine();
-
-            Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");
-            Console.WriteLine();
-            Console.WriteLine();
-
-
-            // generate valid deletable items
-            var deleteCount = 0;
-            var deleteItems = new HashSet<long>();
-            var rand = new Random();
-            while (true)
-            {
-                long target;
-                while (true)
-                {
-                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
-                    if (!deleteItems.Contains(target))
-                    {
-                        break;
-                    }
-                }
-                var data = rbTree.GetData(target);
-
-                if (data != null)
-                {
-                    deleteItems.Add(data.Item1);
-                    deleteCount++;
-                }
-
-                if (deleteCount == totalNodesToDelete)
-                {
-                    break;
-                }
-            }
-            var keysToDelete = deleteItems.ToArray();
-
-            var deleteThreads = new Thread[numOfThreads];
-            for (var i = 0; i < deleteThreads.Length; i++)
-            {
-                var iLocal = i;
-                deleteThreads[i] = new Thread(() =>
-                {
-                    var start = iLocal * nodesPerThread;
-                    var end = start + nodesPerThread - 1;
-                    for (var j = start; j <= end; j++)
-                    {
-                        rbTree.Remove(keysToDelete[j]);
-                    }
-                });
-                deleteThreads[i].Name = i.ToString();
-            }
-
-            // generate valid insertable items
-            var insertCount = 0;
-            var insertItems = new HashSet<long>();
-            while (true)
-            {
-                long target;
-                while (true)
-                {
-                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
-                    if (!insertItems.Contains(target))
-                    {
-                        break;
-                    }
-                }
-                var data = rbTree.GetData(target);
-
-                if (data == null)
-                {
-                    insertItems.Add(target);
-                    insertCount++;
-                }
-
-                if (insertCount == totalNodesToInsert)
-                {
-                    break;
-                }
-            }
-            var values = insertItems.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
-        
-            var insertThreads = new Thread[numOfThreads];
-            for (var i = 0; i < insertThreads.Length; i++)
-            {
-                var iLocal = i;
-                insertThreads[i] = new Thread(() =>
-                {
-                    var start = iLocal * nodesPerThread;
-                    var end = start + nodesPerThread - 1;
-                    for (var j = start; j <= end; j++)
-                    {
-                        rbTree.Add(values[j].Item1, values[j].Item2);
-                    }
-                });
-                insertThreads[i].Name = i.ToString();
-            }
-
-            Console.WriteLine("************* Insert-Delete Test ***************");
-            Console.WriteLine();
-
-            Console.WriteLine($"Total nodes to insert: {totalNodesToInsert}");
-            Console.WriteLine($"Total nodes to delete: {totalNodesToDelete}");
-            Console.WriteLine($"Total threads: {numOfThreads}");
-            Console.WriteLine($"Total nodes per thread: {nodesPerThread}");
-            Console.WriteLine();
-
-            // starting inserts
-            var watch = new Stopwatch();
-            watch.Start();
-
-            for (var i = 0; i < numOfThreads; i++)
-            {
-                insertThreads[i].Start();
-                deleteThreads[i].Start();
-            }
-
-            for (var i = 0; i < numOfThreads; i++)
-            {
-                insertThreads[i].Join();
-                deleteThreads[i].Join();
-            }
-
-            watch.Stop();
-
-            Console.WriteLine($"Total time spent in simultaneous insertion & deletion: {watch.ElapsedMilliseconds} ms");
-            Console.WriteLine();
-
-            Console.WriteLine($"Node count after insertion: {(rbTree.Count())}");
-            Console.WriteLine();
-
-            Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");
-            Console.WriteLine();
-            Console.WriteLine();
         }
 
         public static void ConcurrentDeleteTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
@@ -390,6 +250,94 @@ namespace ConcurrentRedBlackTree
             return;
         }
 
+        public static void ConcurrentSearchTest(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
+            int nodesPerThread, int totalNodesToSearch, long nodesMaxKeyValue)
+        {
+            Console.WriteLine("************* Search Test ***************");
+            Console.WriteLine();
+
+            Console.WriteLine($"We will perform {totalNodesToSearch} serach operations");
+            Console.WriteLine();
+
+            // generate valid deletable items
+            var count = 0;
+            var searchItems = new HashSet<long>();
+            var rand = new Random();
+
+            while (true)
+            {
+                long target;
+                while (true)
+                {
+                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    if (!searchItems.Contains(target))
+                    {
+                        break;
+                    }
+                }
+                var data = rbTree.GetData(target);
+
+                if (data != null)
+                {
+                    searchItems.Add(data.Item1);
+                    count++;
+                }
+
+                if (count == totalNodesToSearch)
+                {
+                    break;
+                }
+            }
+            var keysToSearch = searchItems.ToArray();
+            
+            var threads = new Thread[numOfThreads];
+
+            for (var i = 0; i < threads.Length; i++)
+            {
+                var iLocal = i;
+                threads[i] = new Thread(() =>
+                {
+                    var start = iLocal * nodesPerThread;
+                    var end = start + nodesPerThread - 1;
+                    for (var j = start; j <= end; j++)
+                    {
+                        rbTree.Search(keysToSearch[j]);
+                    }
+                });
+                threads[i].Name = i.ToString();
+            }
+
+            Console.WriteLine($"Total search operations: {totalNodesToSearch}");
+            Console.WriteLine($"Total threads: {numOfThreads}");
+            Console.WriteLine($"Total search operations per thread: {nodesPerThread}");
+            Console.WriteLine();
+
+            // starting deletes
+            var watch = new Stopwatch();
+            watch.Start();
+
+            foreach (var thread in threads)
+            {
+                thread.Start();
+            }
+
+            foreach (var thread in threads)
+            {
+                thread.Join();
+            }
+
+            watch.Stop();
+
+            if (rbTree.isValidRBT(nodesMaxKeyValue + 1) == false)
+            {
+                Console.WriteLine($"After delete, RBT is invalid");
+            }
+
+            Console.WriteLine($"Total time spent in search operations: {watch.ElapsedMilliseconds} ms");
+            Console.WriteLine();
+            Console.WriteLine();
+        }
+
         public static void ConcurrentInsert(ConcurrentRBTree<long, Data> rbTree, int numOfThreads,
             long nodesPerThread, HashSet<long> keys)
         {
@@ -514,6 +462,151 @@ namespace ConcurrentRedBlackTree
             watch.Stop();
 
             Console.WriteLine($"Total time spent in search: {watch.ElapsedMilliseconds} ms");
+            Console.WriteLine();
+            Console.WriteLine();
+        }
+
+        public static void ConcurrentInsertDeleteTest(ConcurrentRBTree<long, Data> rbTree, long totalNodesInTree,int numOfThreads, 
+        int nodesPerThread, long totalNodesToDelete, long totalNodesToInsert,long nodesMaxKeyValue)
+        {
+            Console.WriteLine("************* Create Tree ***************");
+            Console.WriteLine();
+
+            ConcurrentInsertTest(rbTree, 12, totalNodesInTree / 12, totalNodesInTree, nodesMaxKeyValue, false);
+
+            Console.WriteLine($"Node count of tree: {(rbTree.Count())}");
+            Console.WriteLine();
+
+            Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");
+            Console.WriteLine();
+            Console.WriteLine();
+
+
+            // generate valid deletable items
+            var deleteCount = 0;
+            var deleteItems = new HashSet<long>();
+            var rand = new Random();
+            while (true)
+            {
+                long target;
+                while (true)
+                {
+                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    if (!deleteItems.Contains(target))
+                    {
+                        break;
+                    }
+                }
+                var data = rbTree.GetData(target);
+
+                if (data != null)
+                {
+                    deleteItems.Add(data.Item1);
+                    deleteCount++;
+                }
+
+                if (deleteCount == totalNodesToDelete)
+                {
+                    break;
+                }
+            }
+            var keysToDelete = deleteItems.ToArray();
+
+            var deleteThreads = new Thread[numOfThreads];
+            for (var i = 0; i < deleteThreads.Length; i++)
+            {
+                var iLocal = i;
+                deleteThreads[i] = new Thread(() =>
+                {
+                    var start = iLocal * nodesPerThread;
+                    var end = start + nodesPerThread - 1;
+                    for (var j = start; j <= end; j++)
+                    {
+                        rbTree.Remove(keysToDelete[j]);
+                    }
+                });
+                deleteThreads[i].Name = i.ToString();
+            }
+
+            // generate valid insertable items
+            var insertCount = 0;
+            var insertItems = new HashSet<long>();
+            while (true)
+            {
+                long target;
+                while (true)
+                {
+                    target = 1 + (long)(rand.NextDouble() * nodesMaxKeyValue);
+                    if (!insertItems.Contains(target))
+                    {
+                        break;
+                    }
+                }
+                var data = rbTree.GetData(target);
+
+                if (data == null)
+                {
+                    insertItems.Add(target);
+                    insertCount++;
+                }
+
+                if (insertCount == totalNodesToInsert)
+                {
+                    break;
+                }
+            }
+            var values = insertItems.Select(i => new Tuple<long, Data>(i, new Data {Value = i.ToString()})).ToArray();
+        
+            var insertThreads = new Thread[numOfThreads];
+            for (var i = 0; i < insertThreads.Length; i++)
+            {
+                var iLocal = i;
+                insertThreads[i] = new Thread(() =>
+                {
+                    var start = iLocal * nodesPerThread;
+                    var end = start + nodesPerThread - 1;
+                    for (var j = start; j <= end; j++)
+                    {
+                        rbTree.Add(values[j].Item1, values[j].Item2);
+                    }
+                });
+                insertThreads[i].Name = i.ToString();
+            }
+
+            Console.WriteLine("************* Insert-Delete Test ***************");
+            Console.WriteLine();
+
+            Console.WriteLine($"Total nodes to insert: {totalNodesToInsert}");
+            Console.WriteLine($"Total nodes to delete: {totalNodesToDelete}");
+            Console.WriteLine($"Total threads: {numOfThreads}");
+            Console.WriteLine($"Total nodes per thread: {nodesPerThread}");
+            Console.WriteLine();
+
+            // starting inserts
+            var watch = new Stopwatch();
+            watch.Start();
+
+            for (var i = 0; i < numOfThreads; i++)
+            {
+                insertThreads[i].Start();
+                deleteThreads[i].Start();
+            }
+
+            for (var i = 0; i < numOfThreads; i++)
+            {
+                insertThreads[i].Join();
+                deleteThreads[i].Join();
+            }
+
+            watch.Stop();
+
+            Console.WriteLine($"Total time spent in simultaneous insertion & deletion: {watch.ElapsedMilliseconds} ms");
+            Console.WriteLine();
+
+            Console.WriteLine($"Node count after insertion: {(rbTree.Count())}");
+            Console.WriteLine();
+
+            Console.WriteLine($"Tree depth: {rbTree.MaxDepth()}");
             Console.WriteLine();
             Console.WriteLine();
         }

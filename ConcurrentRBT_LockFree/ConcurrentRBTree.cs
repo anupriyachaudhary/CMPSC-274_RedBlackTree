@@ -28,6 +28,71 @@ namespace ConcurrentRedBlackTree
             }
         }
 
+        public RedBlackNode<TKey, TValue> Search(TKey key)
+        {
+            while(true)
+            {
+                if(_root == null)
+                {
+                    break;
+                }
+
+                // begin at root
+                RedBlackNode<TKey, TValue> workNode = _root, nextNode = _root;
+
+                while(true)
+                {
+                    if(!workNode.OccupyNodeAtomically())
+                    {
+                        continue;
+                    }
+
+                    int result = key.CompareTo(workNode.Key);
+                    if (result == 0)
+                    {
+                        return workNode;
+                    }
+
+                    if (result > 0)
+                    {
+                        nextNode = workNode.Right;
+                    }
+                    else
+                    {
+                        nextNode = workNode.Left;
+                    }
+
+                    if(nextNode.IsSentinel)
+                    {
+                        break;
+                    }
+
+                    if(!nextNode.OccupyNodeAtomically())
+                    {
+                        workNode.FreeNodeAtomically();
+                        break;
+                    }
+
+                    if (nextNode.Parent != workNode)
+                    {
+                        workNode.FreeNodeAtomically();
+                        nextNode.FreeNodeAtomically();
+                        continue;
+                    }
+
+                    workNode.FreeNodeAtomically();
+                    workNode = nextNode;
+                }
+
+                if(nextNode.IsSentinel)
+                {
+                    break;
+                }
+            }
+
+            return null;
+        }
+
         public RedBlackNode<TKey, TValue> GetNode(TKey key)
         {
             // begin at root
@@ -147,22 +212,7 @@ namespace ConcurrentRedBlackTree
             // Release markers of local area
             var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
 
-            RedBlackNode<TKey, TValue> top = null;
-            if(localArea[1].Parent != localArea[2])
-            {
-                if(localArea[1].Parent == localArea[0])
-                {
-                    top = localArea[0];
-                }
-                else
-                {
-                    top = localArea[1];
-                }
-            }
-            else
-            {
-                top = localArea[2];
-            }
+            RedBlackNode<TKey, TValue> top = localArea[2];
 
             while(true)
             {
@@ -173,6 +223,10 @@ namespace ConcurrentRedBlackTree
             }
             foreach (var node in intentionMarkers)
             {
+                if(node.Marker != pid)
+                {
+                    Console.WriteLine($"{node.Marker}, {pid}, {Thread.CurrentThread.Name}");
+                }
                 node.Marker  = Guid.Empty;
             }
             ReleaseFlags(pid, false, intentionMarkers.ToList());
@@ -343,8 +397,6 @@ namespace ConcurrentRedBlackTree
 
         private void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working, Guid pid)
         {
-            RedBlackNode<TKey, TValue> newParent = node.Parent, newGrandParent = node.Parent.Parent, newUncle = null;
-
             while (true)
             {
                 if(GetFlagsAndMarkersAbove(node, working, pid, 2))
@@ -352,6 +404,8 @@ namespace ConcurrentRedBlackTree
                     break;
                 }
             }
+
+            RedBlackNode<TKey, TValue> newParent = node.Parent, newGrandParent = node.Parent.Parent, newUncle = null;
 
             while(true)
             {
@@ -392,6 +446,59 @@ namespace ConcurrentRedBlackTree
             working[3] = newUncle;
         }
 
+        private void FixUpForInsertCase3(
+            RedBlackNode<TKey, TValue>[] localArea,
+            Guid pid)
+        {
+            //  correct relocated intention markers for other processes
+            if (localArea[1].Marker != Guid.Empty 
+                && localArea[0].Marker == localArea[1].Marker)
+            {
+                Console.WriteLine("FixUpForInsertCase3");
+                localArea[2].Marker = localArea[0].Marker;
+                localArea[1].Marker = Guid.Empty; 
+            }
+
+            var parentOtherChild = (localArea[0] == localArea[1].Right) ? localArea[1].Left : localArea[1].Right;
+            if (localArea[1].Marker != Guid.Empty 
+                && parentOtherChild.Marker == localArea[1].Marker
+                && localArea[2].Marker == localArea[1].Marker)
+            {
+                Console.WriteLine("FixUpForInsertCase3");
+                localArea[2].Marker = Guid.Empty;
+                localArea[0].Marker = localArea[1].Marker; 
+            }
+
+            // Correct Local area
+            var newParent = localArea[0];
+            
+            localArea[0] = localArea[1];
+            localArea[1] = newParent;
+        }
+
+        private void FixUpForInsertCase4(
+            RedBlackNode<TKey, TValue>[] localArea,
+            Guid pid)
+        {
+            var movedChild = (localArea[0] == localArea[1].Right) ? localArea[1].Left : localArea[1].Right;
+
+            //  correct relocated intention markers for other processes
+            if (localArea[1].Marker != Guid.Empty 
+                && movedChild.Marker == localArea[1].Marker
+                && localArea[2].Marker == Guid.Empty)
+            {
+                Console.WriteLine("FixUpForInsertCase4");
+                localArea[2].Marker = localArea[1].Marker;
+                localArea[1].Marker = Guid.Empty; 
+            }
+
+            // Correct Local area
+            var temp = localArea[1];
+            
+            localArea[1] = localArea[2];
+            localArea[2] = temp;
+        }
+
 
         private void BalanceTreeAfterInsert(RedBlackNode<TKey, TValue> insertedNode,
             RedBlackNode<TKey, TValue>[] working, Guid pid)
@@ -420,31 +527,14 @@ namespace ConcurrentRedBlackTree
                         {
                             insertedNode = insertedNode.Parent;
                             RotateLeft(insertedNode);
+                            FixUpForInsertCase3(working, pid);
                         }
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
                         insertedNode.Parent.Parent.Color = RedBlackNodeType.Red;
 
-                        RedBlackNode<TKey, TValue> gp = null;
-                        while(true)
-                        {
-                            gp = insertedNode.Parent.Parent.Parent;
-                            if(!gp.OccupyNodeAtomically())
-                            {
-                                continue;
-                            }
-
-                            if(insertedNode.Parent.Parent.Parent != gp)
-                            {
-                                gp.FreeNodeAtomically();
-                                continue;
-                            }
-
-                            break;
-                        }
-
                         RotateRight(insertedNode.Parent.Parent);
-                        gp.FreeNodeAtomically();
+                        FixUpForInsertCase4(working, pid);
                     }
                 }
                 else
@@ -466,30 +556,14 @@ namespace ConcurrentRedBlackTree
                         {
                             insertedNode = insertedNode.Parent;
                             RotateRight(insertedNode);
+                            FixUpForInsertCase3(working, pid);
                         }
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
                         insertedNode.Parent.Parent.Color = RedBlackNodeType.Red;
 
-                        RedBlackNode<TKey, TValue> gp = null;
-                        while(true)
-                        {
-                            gp = insertedNode.Parent.Parent.Parent;
-                            if(!gp.OccupyNodeAtomically())
-                            {
-                                continue;
-                            }
-
-                            if(insertedNode.Parent.Parent.Parent != gp)
-                            {
-                                gp.FreeNodeAtomically();
-                                continue;
-                            }
-
-                            break;
-                        }
                         RotateLeft(insertedNode.Parent.Parent);
-                        gp.FreeNodeAtomically();
+                        FixUpForInsertCase4(working, pid);
                     }
                 }
             }
