@@ -78,22 +78,7 @@ namespace ConcurrentRedBlackTree
             // Release markers of local area
             var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
 
-            RedBlackNode<TKey, TValue> top = null;
-            if(localArea[1].Parent != localArea[2])
-            {
-                if(localArea[1].Parent == localArea[0])
-                {
-                    top = localArea[0];
-                }
-                else
-                {
-                    top = localArea[1];
-                }
-            }
-            else
-            {
-                top = localArea[2];
-            }
+            var top = localArea[2];
 
             while(true)
             {
@@ -276,13 +261,13 @@ namespace ConcurrentRedBlackTree
             return true;
         }
 
-        private void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] working, Guid pid)
+        private void MoveLocalAreaUpwardForInsert(RedBlackNode<TKey, TValue> node, RedBlackNode<TKey, TValue>[] localArea, Guid pid)
         {
             RedBlackNode<TKey, TValue> newParent = node.Parent, newGrandParent = node.Parent.Parent, newUncle = null;
 
             while (true)
             {
-                if(GetFlagsAndMarkersAbove(node, working, pid, 2))
+                if(GetFlagsAndMarkersAbove(node, localArea, pid, 2))
                 {
                     break;
                 }
@@ -316,20 +301,20 @@ namespace ConcurrentRedBlackTree
 
             // release flag on old local area
             List<RedBlackNode<TKey, TValue>> nodesToRelease = new List<RedBlackNode<TKey, TValue>>();
-            nodesToRelease.Add(working[0]);
-            nodesToRelease.Add(working[1]);
-            nodesToRelease.Add(working[3]);
+            nodesToRelease.Add(localArea[0]);
+            nodesToRelease.Add(localArea[1]);
+            nodesToRelease.Add(localArea[3]);
             ReleaseFlagsAfterSuccess(nodesToRelease, pid);
 
-            working[0] = node;
-            working[1] = newParent;
-            working[2] = newGrandParent;
-            working[3] = newUncle;
+            localArea[0] = node;
+            localArea[1] = newParent;
+            localArea[2] = newGrandParent;
+            localArea[3] = newUncle;
         }
 
 
         private void BalanceTreeAfterInsert(RedBlackNode<TKey, TValue> insertedNode,
-            RedBlackNode<TKey, TValue>[] working, Guid pid)
+            RedBlackNode<TKey, TValue>[] localArea, Guid pid)
         {
             // maintain red-black tree properties after adding newNode
             while (insertedNode != _root && insertedNode.Parent.Color == RedBlackNodeType.Red)
@@ -347,7 +332,7 @@ namespace ConcurrentRedBlackTree
 
                         // continue loop with grandparent
                         insertedNode = insertedNode.Parent.Parent;
-                        MoveLocalAreaUpwardForInsert(insertedNode, working, pid);
+                        MoveLocalAreaUpwardForInsert(insertedNode, localArea, pid);
                     }
                     else
                     {
@@ -355,6 +340,7 @@ namespace ConcurrentRedBlackTree
                         {
                             insertedNode = insertedNode.Parent;
                             RotateLeft(insertedNode);
+                            FixUpForInsertCase3(localArea, pid);
                         }
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
@@ -380,6 +366,7 @@ namespace ConcurrentRedBlackTree
 
                         RotateRight(insertedNode.Parent.Parent);
                         gp.FreeNodeAtomically();
+                        FixUpForInsertCase4(localArea, pid);
                     }
                 }
                 else
@@ -393,7 +380,7 @@ namespace ConcurrentRedBlackTree
 
                         // continue loop with grandparent
                         insertedNode = insertedNode.Parent.Parent;
-                        MoveLocalAreaUpwardForInsert(insertedNode, working, pid);
+                        MoveLocalAreaUpwardForInsert(insertedNode, localArea, pid);
                     }
                     else
                     {
@@ -401,6 +388,7 @@ namespace ConcurrentRedBlackTree
                         {
                             insertedNode = insertedNode.Parent;
                             RotateRight(insertedNode);
+                            FixUpForInsertCase3(localArea, pid);
                         }
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
@@ -425,11 +413,54 @@ namespace ConcurrentRedBlackTree
                         }
                         RotateLeft(insertedNode.Parent.Parent);
                         gp.FreeNodeAtomically();
+                        FixUpForInsertCase4(localArea, pid);
                     }
                 }
             }
 
             _root.Color = RedBlackNodeType.Black;
         }
+
+        private void FixUpForInsertCase3(
+            RedBlackNode<TKey, TValue>[] localArea,
+            Guid pid)
+        {
+            //  correct relocated intention markers for other processes
+            if (localArea[1].Marker != Guid.Empty 
+                && localArea[0].Marker == localArea[1].Marker)
+            {
+                localArea[2].Marker = localArea[0].Marker;
+                localArea[1].Marker = Guid.Empty; 
+            }
+
+            // Correct Local area
+            var newParent = localArea[0];
+            
+            localArea[0] = localArea[1];
+            localArea[1] = newParent;
+        }
+
+        private void FixUpForInsertCase4(
+            RedBlackNode<TKey, TValue>[] localArea,
+            Guid pid)
+        {
+            var movedChild = (localArea[0] == localArea[1].Right) ? localArea[1].Left : localArea[1].Right;
+
+            //  correct relocated intention markers for other processes
+            if (localArea[1].Marker != Guid.Empty 
+                && movedChild.Marker == localArea[1].Marker
+                && localArea[2].Marker == Guid.Empty)
+            {
+                localArea[2].Marker = localArea[1].Marker;
+                localArea[1].Marker = Guid.Empty; 
+            }
+
+            // Correct Local area
+            var temp = localArea[1];
+            
+            localArea[1] = localArea[2];
+            localArea[2] = temp;
+        }
+
     }
 }

@@ -404,7 +404,7 @@ namespace ConcurrentRedBlackTree
                         w.Color = RedBlackNodeType.Black;
                         RotateLeft(x.Parent);
                         w = x.Parent.Right;
-                        FixUpCase1(localArea, pid);
+                        FixUpForDeleteCase1(localArea, pid);
                     }
                     if (w.Left.Color == RedBlackNodeType.Black &&
                         w.Right.Color == RedBlackNodeType.Black)
@@ -422,7 +422,7 @@ namespace ConcurrentRedBlackTree
                             w.Left.Color = RedBlackNodeType.Black;
                             w.Color = RedBlackNodeType.Red;
                             RotateRight(w);
-                            FixUpCase3(localArea, pid);
+                            FixUpForDeleteCase3(localArea, pid);
                             w = x.Parent.Right;
                         }
                         w.Color = x.Parent.Color;
@@ -442,7 +442,7 @@ namespace ConcurrentRedBlackTree
                         w.Color = RedBlackNodeType.Black;
                         RotateRight(x.Parent);
                         w = x.Parent.Left;
-                        FixUpCase1(localArea, pid);
+                        FixUpForDeleteCase1(localArea, pid);
                     }
                     if (w.Right.Color == RedBlackNodeType.Black &&
                         w.Left.Color == RedBlackNodeType.Black)
@@ -457,7 +457,7 @@ namespace ConcurrentRedBlackTree
                             w.Right.Color = RedBlackNodeType.Black;
                             w.Color = RedBlackNodeType.Red;
                             RotateLeft(w);
-                            FixUpCase3(localArea, pid);
+                            FixUpForDeleteCase3(localArea, pid);
                             w = x.Parent.Left;
                         }
                         w.Color = x.Parent.Color;
@@ -521,7 +521,7 @@ namespace ConcurrentRedBlackTree
             }
         }
 
-        private void FixUpCase1(
+        private void FixUpForDeleteCase1(
             RedBlackNode<TKey, TValue>[] localArea,
             Guid pid)
         {
@@ -683,7 +683,7 @@ namespace ConcurrentRedBlackTree
             return newx;
         }
 
-        private void FixUpCase3(
+        private void FixUpForDeleteCase3(
             RedBlackNode<TKey, TValue>[] localArea,
             Guid pid)
         {
