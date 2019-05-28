@@ -147,22 +147,7 @@ namespace ConcurrentRedBlackTree
             // Release markers of local area
             var intentionMarkers = new RedBlackNode<TKey, TValue>[4];
 
-            RedBlackNode<TKey, TValue> top = null;
-            if(localArea[1].Parent != localArea[2])
-            {
-                if(localArea[1].Parent == localArea[0])
-                {
-                    top = localArea[0];
-                }
-                else
-                {
-                    top = localArea[1];
-                }
-            }
-            else
-            {
-                top = localArea[2];
-            }
+            RedBlackNode<TKey, TValue> top = localArea[2];
 
             while(true)
             {
@@ -392,6 +377,56 @@ namespace ConcurrentRedBlackTree
             working[3] = newUncle;
         }
 
+        private void FixUpForInsertCase3(
+            RedBlackNode<TKey, TValue>[] localArea,
+            Guid pid)
+        {
+            //  correct relocated intention markers for other processes
+            if (localArea[1].Marker != Guid.Empty 
+                && localArea[0].Marker == localArea[1].Marker)
+            {
+                localArea[2].Marker = localArea[0].Marker;
+                localArea[1].Marker = Guid.Empty; 
+            }
+
+            var parentOtherChild = (localArea[0] == localArea[1].Right) ? localArea[1].Left : localArea[1].Right;
+            if (localArea[1].Marker != Guid.Empty 
+                && parentOtherChild.Marker == localArea[1].Marker
+                && localArea[2].Marker == localArea[1].Marker)
+            {
+                localArea[2].Marker = Guid.Empty;
+                localArea[0].Marker = localArea[1].Marker; 
+            }
+
+            // Correct Local area
+            var newParent = localArea[0];
+            
+            localArea[0] = localArea[1];
+            localArea[1] = newParent;
+        }
+
+        private void FixUpForInsertCase4(
+            RedBlackNode<TKey, TValue>[] localArea,
+            Guid pid)
+        {
+            var movedChild = (localArea[0] == localArea[1].Right) ? localArea[1].Left : localArea[1].Right;
+
+            //  correct relocated intention markers for other processes
+            if (localArea[1].Marker != Guid.Empty 
+                && movedChild.Marker == localArea[1].Marker
+                && localArea[2].Marker == Guid.Empty)
+            {
+                localArea[2].Marker = localArea[1].Marker;
+                localArea[1].Marker = Guid.Empty; 
+            }
+
+            // Correct Local area
+            var temp = localArea[1];
+            
+            localArea[1] = localArea[2];
+            localArea[2] = temp;
+        }
+
 
         private void BalanceTreeAfterInsert(RedBlackNode<TKey, TValue> insertedNode,
             RedBlackNode<TKey, TValue>[] working, Guid pid)
@@ -420,6 +455,7 @@ namespace ConcurrentRedBlackTree
                         {
                             insertedNode = insertedNode.Parent;
                             RotateLeft(insertedNode);
+                            FixUpForInsertCase3(working, pid);
                         }
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
@@ -445,6 +481,7 @@ namespace ConcurrentRedBlackTree
 
                         RotateRight(insertedNode.Parent.Parent);
                         gp.FreeNodeAtomically();
+                        FixUpForInsertCase4(working, pid);
                     }
                 }
                 else
@@ -466,6 +503,7 @@ namespace ConcurrentRedBlackTree
                         {
                             insertedNode = insertedNode.Parent;
                             RotateRight(insertedNode);
+                            FixUpForInsertCase3(working, pid);
                         }
 
                         insertedNode.Parent.Color = RedBlackNodeType.Black;
@@ -490,6 +528,7 @@ namespace ConcurrentRedBlackTree
                         }
                         RotateLeft(insertedNode.Parent.Parent);
                         gp.FreeNodeAtomically();
+                        FixUpForInsertCase4(working, pid);
                     }
                 }
             }
