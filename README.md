@@ -16,4 +16,6 @@ $ dotnet build
 $ dotnet run
 
 
+Link to project presentation slides:
+https://docs.google.com/presentation/d/1p5axbXUQ7fa-ON-EYLz5Y7MdvoQQCLLfTR3dDWRUteM/edit?usp=sharing
 
